@@ -585,6 +585,7 @@ const QuestTaskManager = () => {
     }
   };
 
+  // Убеждаемся, что функция помечена как async
   const claimReward = async (rewardId) => {
     try {
       console.log('🎁 Claiming reward:', rewardId);
