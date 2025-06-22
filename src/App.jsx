@@ -4,7 +4,7 @@ import {
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
   Target, Zap, Search, Filter, Calendar, User, Users, Gift,
   Mail, Lock, Save, X, UserPlus, Send, Award, Home, ListChecks,
-  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn
+  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu
 } from 'lucide-react';
 
 // 🔥 ВАШИ ДАННЫЕ SUPABASE:
@@ -17,6 +17,7 @@ const QuestTaskManager = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Auth states
   const [authMode, setAuthMode] = useState('login');
@@ -56,6 +57,7 @@ const QuestTaskManager = () => {
   const [rewards, setRewards] = useState({pending: [], claimed: []});
   const [achievements, setAchievements] = useState([]);
   const [showAchievements, setShowAchievements] = useState(false);
+  
   const difficultyColors = {
     common: 'text-gray-300 border-gray-500',
     rare: 'text-blue-400 border-blue-500',
@@ -70,16 +72,16 @@ const QuestTaskManager = () => {
 
   const getAvatarIcon = (avatar) => {
     switch(avatar) {
-      case 'Hero': return <Sword className="w-8 h-8 text-yellow-400" />;
-      case 'Warrior': return <Sword className="w-8 h-8 text-red-400" />;
-      case 'Mage': return <Star className="w-8 h-8 text-purple-400" />;
-      case 'Archer': return <Target className="w-8 h-8 text-green-400" />;
-      case 'Paladin': return <Shield className="w-8 h-8 text-blue-400" />;
-      case 'Wizard': return <Zap className="w-8 h-8 text-indigo-400" />;
-      case 'Knight': return <Award className="w-8 h-8 text-gray-400" />;
-      case 'Ranger': return <Eye className="w-8 h-8 text-emerald-400" />;
-      case 'Alchemist': return <Gift className="w-8 h-8 text-orange-400" />;
-      default: return <User className="w-8 h-8 text-gray-400" />;
+      case 'Hero': return <Sword className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" />;
+      case 'Warrior': return <Sword className="w-6 h-6 sm:w-8 sm:h-8 text-red-400" />;
+      case 'Mage': return <Star className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />;
+      case 'Archer': return <Target className="w-6 h-6 sm:w-8 sm:h-8 text-green-400" />;
+      case 'Paladin': return <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />;
+      case 'Wizard': return <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-400" />;
+      case 'Knight': return <Award className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />;
+      case 'Ranger': return <Eye className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />;
+      case 'Alchemist': return <Gift className="w-6 h-6 sm:w-8 sm:h-8 text-orange-400" />;
+      default: return <User className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />;
     }
   };
 
@@ -118,7 +120,7 @@ const QuestTaskManager = () => {
   useEffect(() => {
     if (user) {
       loadUserData();
-      loadQuests(); // ← Добавили вызов loadQuests
+      loadQuests();
       loadRewards();
 
       const friendRequestsSubscription = supabase
@@ -148,7 +150,6 @@ const QuestTaskManager = () => {
         )
         .subscribe();
 
-      // ОТДЕЛЬНАЯ подписка на rewards
       const rewardsSubscription = supabase
         .channel('rewards_changes')
         .on('postgres_changes', {
@@ -176,7 +177,6 @@ const QuestTaskManager = () => {
         )
         .subscribe();
 
-      // Подписываемся на изменения в квестах
       const questsSubscription = supabase
         .channel('quests_changes')
         .on('postgres_changes',
@@ -304,129 +304,126 @@ const QuestTaskManager = () => {
     }
   };
 
-  // ✅ ДОБАВИЛИ ФУНКЦИЮ LOADQUESTS ЗДЕСЬ
   const loadQuests = async () => {
-  if (!user) return;
+    if (!user) return;
 
-  try {
-    console.log('📋 Loading quests for user:', user.id);
+    try {
+      console.log('📋 Loading quests for user:', user.id);
 
-    // Загружаем все квесты пользователя с подзадачами
-    const { data: questsData, error: questsError } = await supabase
-      .from('quests')
-      .select(`
-        *,
-        quest_subtasks(
-          id,
-          title,
-          completed,
-          xp,
-          order_index
-        ),
-        assigned_by_profile:profiles!quests_assigned_by_fkey(id, name, email),
-        assigned_to_profile:profiles!quests_assigned_to_fkey(id, name, email)
-      `)
-      .or(`created_by.eq.${user.id},assigned_to.eq.${user.id},assigned_by.eq.${user.id}`)
-      .order('created_at', { ascending: false });
+      const { data: questsData, error: questsError } = await supabase
+        .from('quests')
+        .select(`
+          *,
+          quest_subtasks(
+            id,
+            title,
+            completed,
+            xp,
+            order_index
+          ),
+          assigned_by_profile:profiles!quests_assigned_by_fkey(id, name, email),
+          assigned_to_profile:profiles!quests_assigned_to_fkey(id, name, email)
+        `)
+        .or(`created_by.eq.${user.id},assigned_to.eq.${user.id},assigned_by.eq.${user.id}`)
+        .order('created_at', { ascending: false });
 
-    if (questsError) {
-      console.error('❌ Error loading quests:', questsError);
-      return;
-    }
+      if (questsError) {
+        console.error('❌ Error loading quests:', questsError);
+        return;
+      }
 
-    console.log('📋 Quests loaded with subtasks:', questsData);
+      console.log('📋 Quests loaded with subtasks:', questsData);
 
-    if (questsData) {
-      const formattedQuests = questsData.map(quest => ({
-        id: quest.id,
-        title: quest.title,
-        description: quest.description,
-        type: quest.type,
-        difficulty: quest.difficulty,
-        xp: quest.xp,
-        reward: quest.reward,
-        bonus: quest.bonus,
-        completed: quest.completed,
-        progress: quest.progress || 0,
-        totalSteps: quest.total_steps || 1,
-        createdAt: new Date(quest.created_at),
-        dueDate: quest.due_date ? new Date(quest.due_date) : null,
-        assignedBy: quest.assigned_by,
-        assignedTo: quest.assigned_to,
-        expanded: false,
-        // ИСПРАВЛЕНО: правильно загружаем подзадачи из quest_subtasks
-        subtasks: quest.quest_subtasks ? quest.quest_subtasks
-          .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-          .map(st => ({
-            id: st.id,
-            title: st.title,
-            completed: st.completed || false,
-            xp: st.xp || 50
-          })) : []
-      }));
-
-      setQuests(formattedQuests);
-      console.log('📋 Formatted quests with subtasks:', formattedQuests);
-    }
-
-  } catch (error) {
-    console.error('❌ Error in loadQuests:', error);
-  }
-};
-
-const loadRewards = async () => {
-  if (!user) return;
-
-  try {
-    console.log('🎁 Loading rewards for user:', user.id);
-
-    const { data: rewardsData, error: rewardsError } = await supabase
-      .from('rewards')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('earned_at', { ascending: false });
-
-    if (rewardsError) {
-      console.error('❌ Error loading rewards:', rewardsError);
-      return;
-    }
-
-    if (rewardsData) {
-      const pending = rewardsData
-        .filter(r => !r.claimed)
-        .map(r => ({
-          id: r.id,
-          questId: r.quest_id,
-          questTitle: r.quest_title || 'Unknown Quest',
-          reward: r.title,
-          bonus: r.bonus,
-          xp: r.xp,
-          earnedAt: new Date(r.earned_at),
-          type: r.type,
-          claimed: false
+      if (questsData) {
+        const formattedQuests = questsData.map(quest => ({
+          id: quest.id,
+          title: quest.title,
+          description: quest.description,
+          type: quest.type,
+          difficulty: quest.difficulty,
+          xp: quest.xp,
+          reward: quest.reward,
+          bonus: quest.bonus,
+          completed: quest.completed,
+          progress: quest.progress || 0,
+          totalSteps: quest.total_steps || 1,
+          createdAt: new Date(quest.created_at),
+          dueDate: quest.due_date ? new Date(quest.due_date) : null,
+          assignedBy: quest.assigned_by,
+          assignedTo: quest.assigned_to,
+          expanded: false,
+          subtasks: quest.quest_subtasks ? quest.quest_subtasks
+            .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+            .map(st => ({
+              id: st.id,
+              title: st.title,
+              completed: st.completed || false,
+              xp: st.xp || 50
+            })) : []
         }));
 
-      const claimed = rewardsData
-        .filter(r => r.claimed)
-        .map(r => ({
-          id: r.id,
-          questId: r.quest_id,
-          questTitle: r.quest_title || 'Unknown Quest',
-          reward: r.title,
-          bonus: r.bonus,
-          xp: r.xp,
-          earnedAt: new Date(r.earned_at),
-          claimedAt: r.claimed_at ? new Date(r.claimed_at) : null,
-          type: r.type,
-          claimed: true
-        }));
+        setQuests(formattedQuests);
+        console.log('📋 Formatted quests with subtasks:', formattedQuests);
+      }
 
-      setRewards({ pending, claimed });
+    } catch (error) {
+      console.error('❌ Error in loadQuests:', error);
     }
-  } catch (error) {
-    console.error('❌ Error in loadRewards:', error);
-  }
-};
+  };
+
+  const loadRewards = async () => {
+    if (!user) return;
+
+    try {
+      console.log('🎁 Loading rewards for user:', user.id);
+
+      const { data: rewardsData, error: rewardsError } = await supabase
+        .from('rewards')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('earned_at', { ascending: false });
+
+      if (rewardsError) {
+        console.error('❌ Error loading rewards:', rewardsError);
+        return;
+      }
+
+      if (rewardsData) {
+        const pending = rewardsData
+          .filter(r => !r.claimed)
+          .map(r => ({
+            id: r.id,
+            questId: r.quest_id,
+            questTitle: r.quest_title || 'Unknown Quest',
+            reward: r.title,
+            bonus: r.bonus,
+            xp: r.xp,
+            earnedAt: new Date(r.earned_at),
+            type: r.type,
+            claimed: false
+          }));
+
+        const claimed = rewardsData
+          .filter(r => r.claimed)
+          .map(r => ({
+            id: r.id,
+            questId: r.quest_id,
+            questTitle: r.quest_title || 'Unknown Quest',
+            reward: r.title,
+            bonus: r.bonus,
+            xp: r.xp,
+            earnedAt: new Date(r.earned_at),
+            claimedAt: r.claimed_at ? new Date(r.claimed_at) : null,
+            type: r.type,
+            claimed: true
+          }));
+
+        setRewards({ pending, claimed });
+      }
+    } catch (error) {
+      console.error('❌ Error in loadRewards:', error);
+    }
+  };
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -563,51 +560,48 @@ const loadRewards = async () => {
   };
 
   const claimReward = async (rewardId) => {
-  try {
-    console.log('🎁 Claiming reward:', rewardId);
+    try {
+      console.log('🎁 Claiming reward:', rewardId);
 
-    const reward = rewards.pending.find(r => r.id === rewardId);
-    if (!reward) {
-      console.error('❌ Reward not found');
-      return;
+      const reward = rewards.pending.find(r => r.id === rewardId);
+      if (!reward) {
+        console.error('❌ Reward not found');
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from('rewards')
+        .update({ 
+          claimed: true,
+          claimed_at: new Date().toISOString()
+        })
+        .eq('id', rewardId);
+
+      if (updateError) {
+        console.error('❌ Error claiming reward:', updateError);
+        alert('Ошибка получения награды: ' + updateError.message);
+        return;
+      }
+
+      setCurrentUser(prev => {
+        const newXp = prev.xp + reward.xp;
+        const levelUp = newXp >= prev.xpToNext;
+        return {
+          ...prev,
+          xp: levelUp ? newXp - prev.xpToNext : newXp,
+          level: levelUp ? prev.level + 1 : prev.level,
+          xpToNext: levelUp ? prev.xpToNext + 500 : prev.xpToNext,
+          totalXp: prev.totalXp + reward.xp
+        };
+      });
+
+      await loadRewards();
+
+    } catch (error) {
+      console.error('❌ Error in claimReward:', error);
+      alert('Ошибка: ' + error.message);
     }
-
-    // Обновляем в базе данных
-    const { error: updateError } = await supabase
-      .from('rewards')
-      .update({ 
-        claimed: true,
-        claimed_at: new Date().toISOString()
-      })
-      .eq('id', rewardId);
-
-    if (updateError) {
-      console.error('❌ Error claiming reward:', updateError);
-      alert('Ошибка получения награды: ' + updateError.message);
-      return;
-    }
-
-    // Обновляем опыт пользователя
-    setCurrentUser(prev => {
-      const newXp = prev.xp + reward.xp;
-      const levelUp = newXp >= prev.xpToNext;
-      return {
-        ...prev,
-        xp: levelUp ? newXp - prev.xpToNext : newXp,
-        level: levelUp ? prev.level + 1 : prev.level,
-        xpToNext: levelUp ? prev.xpToNext + 500 : prev.xpToNext,
-        totalXp: prev.totalXp + reward.xp
-      };
-    });
-
-    // Перезагружаем награды
-    await loadRewards();
-
-  } catch (error) {
-    console.error('❌ Error in claimReward:', error);
-    alert('Ошибка: ' + error.message);
-  }
-};
+  };
 
   const saveProfile = () => {
     if (profileForm.newPassword && profileForm.newPassword !== profileForm.confirmPassword) {
@@ -625,239 +619,226 @@ const loadRewards = async () => {
     setProfileForm({ ...profileForm, oldPassword: '', newPassword: '', confirmPassword: '' });
   };
 
- const toggleSubtask = async (questId, subtaskId) => {
-  try {
-    const quest = quests.find(q => q.id === questId);
-    const subtask = quest?.subtasks.find(st => st.id === subtaskId);
-    
-    if (!subtask) {
-      console.error('❌ Subtask not found');
-      return;
-    }
+  const toggleSubtask = async (questId, subtaskId) => {
+    try {
+      const quest = quests.find(q => q.id === questId);
+      const subtask = quest?.subtasks.find(st => st.id === subtaskId);
+      
+      if (!subtask) {
+        console.error('❌ Subtask not found');
+        return;
+      }
 
-    const newCompletedStatus = !subtask.completed;
+      const newCompletedStatus = !subtask.completed;
 
-    // Обновляем в базе данных
-    const { error: updateError } = await supabase
-      .from('quest_subtasks')
-      .update({ completed: newCompletedStatus })
-      .eq('id', subtaskId);
+      const { error: updateError } = await supabase
+        .from('quest_subtasks')
+        .update({ completed: newCompletedStatus })
+        .eq('id', subtaskId);
 
-    if (updateError) {
-      console.error('❌ Error updating subtask:', updateError);
-      alert('Ошибка обновления подзадачи: ' + updateError.message);
-      return;
-    }
+      if (updateError) {
+        console.error('❌ Error updating subtask:', updateError);
+        alert('Ошибка обновления подзадачи: ' + updateError.message);
+        return;
+      }
 
-    // Подсчитываем новый прогресс
-    const updatedSubtasks = quest.subtasks.map(st => 
-      st.id === subtaskId ? { ...st, completed: newCompletedStatus } : st
-    );
-    const completedCount = updatedSubtasks.filter(st => st.completed).length;
-    const isQuestComplete = completedCount === quest.totalSteps;
+      const updatedSubtasks = quest.subtasks.map(st => 
+        st.id === subtaskId ? { ...st, completed: newCompletedStatus } : st
+      );
+      const completedCount = updatedSubtasks.filter(st => st.completed).length;
+      const isQuestComplete = completedCount === quest.totalSteps;
 
-    // Обновляем прогресс квеста в БД
-    const { error: questUpdateError } = await supabase
-      .from('quests')
-      .update({ 
-        progress: completedCount, 
-        completed: isQuestComplete 
-      })
-      .eq('id', questId);
-
-    if (questUpdateError) {
-      console.error('❌ Error updating quest progress:', questUpdateError);
-    }
-
-    // Создаем/удаляем награду за подзадачу в БД
-    if (newCompletedStatus && !subtask.completed) {
-      console.log('🎁 Creating subtask reward for:', subtask.title);
-      const { data: createdReward, error: subtaskRewardError } = await supabase
-        .from('rewards')
-        .insert({
-          user_id: user.id,
-          quest_id: quest.id,
-          quest_title: quest.title,
-          title: `${subtask.title} - Выполнено`,
-          bonus: null,
-          xp: subtask.xp,
-          type: 'subtask',
-          claimed: false,
-          earned_at: new Date().toISOString()
+      const { error: questUpdateError } = await supabase
+        .from('quests')
+        .update({ 
+          progress: completedCount, 
+          completed: isQuestComplete 
         })
-        .select()
-        .single();
+        .eq('id', questId);
 
-      if (subtaskRewardError) {
-        console.error('❌ Error creating subtask reward:', subtaskRewardError);
-      } else {
-        console.log('✅ Subtask reward created:', createdReward);
+      if (questUpdateError) {
+        console.error('❌ Error updating quest progress:', questUpdateError);
       }
-    } else if (!newCompletedStatus && subtask.completed) {
-      const { error: deleteSubtaskRewardError } = await supabase
-        .from('rewards')
-        .delete()
-        .eq('quest_id', questId)
-        .eq('title', `${subtask.title} - Выполнено`)
-        .eq('type', 'subtask')
-        .eq('claimed', false);
 
-      if (deleteSubtaskRewardError) {
-        console.error('❌ Error deleting subtask reward:', deleteSubtaskRewardError);
+      if (newCompletedStatus && !subtask.completed) {
+        console.log('🎁 Creating subtask reward for:', subtask.title);
+        const { data: createdReward, error: subtaskRewardError } = await supabase
+          .from('rewards')
+          .insert({
+            user_id: user.id,
+            quest_id: quest.id,
+            quest_title: quest.title,
+            title: `${subtask.title} - Выполнено`,
+            bonus: null,
+            xp: subtask.xp,
+            type: 'subtask',
+            claimed: false,
+            earned_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (subtaskRewardError) {
+          console.error('❌ Error creating subtask reward:', subtaskRewardError);
+        } else {
+          console.log('✅ Subtask reward created:', createdReward);
+        }
+      } else if (!newCompletedStatus && subtask.completed) {
+        const { error: deleteSubtaskRewardError } = await supabase
+          .from('rewards')
+          .delete()
+          .eq('quest_id', questId)
+          .eq('title', `${subtask.title} - Выполнено`)
+          .eq('type', 'subtask')
+          .eq('claimed', false);
+
+        if (deleteSubtaskRewardError) {
+          console.error('❌ Error deleting subtask reward:', deleteSubtaskRewardError);
+        }
       }
+
+      if (isQuestComplete && !quest.completed) {
+        console.log('🎁 Creating main quest reward for:', quest.title);
+        const { data: createdMainReward, error: mainRewardError } = await supabase
+          .from('rewards')
+          .insert({
+            user_id: user.id,
+            quest_id: quest.id,
+            quest_title: quest.title,
+            title: quest.reward || 'Квест выполнен!',
+            bonus: quest.bonus,
+            xp: quest.xp,
+            type: 'main',
+            claimed: false,
+            earned_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (mainRewardError) {
+          console.error('❌ Error creating main reward:', mainRewardError);
+        } else {
+          console.log('✅ Main quest reward created:', createdMainReward);
+        }
+      } else if (!isQuestComplete && quest.completed) {
+        const { error: deleteMainRewardError } = await supabase
+          .from('rewards')
+          .delete()
+          .eq('quest_id', questId)
+          .eq('type', 'main')
+          .eq('claimed', false);
+
+        if (deleteMainRewardError) {
+          console.error('❌ Error deleting main reward:', deleteMainRewardError);
+        }
+      }
+          
+      setQuests(quests.map(q => {
+        if (q.id === questId) {
+          return {
+            ...q,
+            subtasks: updatedSubtasks,
+            progress: completedCount,
+            completed: isQuestComplete
+          };
+        }
+        return q;
+      }));
+
+      setTimeout(async () => {
+        await loadRewards();
+      }, 500);
+
+    } catch (error) {
+      console.error('❌ Error in toggleSubtask:', error);
+      alert('Ошибка: ' + error.message);
     }
+  };
 
-    // Создаем/удаляем главную награду за квест в БД
-    if (isQuestComplete && !quest.completed) {
-      console.log('🎁 Creating main quest reward for:', quest.title);
-      const { data: createdMainReward, error: mainRewardError } = await supabase
-        .from('rewards')
-        .insert({
+  const toggleQuest = async (questId) => {
+    try {
+      const quest = quests.find(q => q.id === questId);
+      if (!quest || quest.subtasks.length > 0) {
+        console.log('❌ Quest not found or has subtasks');
+        return;
+      }
+
+      const newCompletedStatus = !quest.completed;
+      console.log(`🔄 Toggling quest ${questId} to ${newCompletedStatus}`);
+
+      const { error: questUpdateError } = await supabase
+        .from('quests')
+        .update({ 
+          completed: newCompletedStatus,
+          progress: newCompletedStatus ? 1 : 0
+        })
+        .eq('id', questId);
+
+      if (questUpdateError) {
+        console.error('❌ Error updating quest:', questUpdateError);
+        alert('Ошибка обновления квеста: ' + questUpdateError.message);
+        return;
+      }
+
+      if (newCompletedStatus && !quest.completed) {
+        const rewardData = {
           user_id: user.id,
           quest_id: quest.id,
           quest_title: quest.title,
-          title: quest.reward || 'Квест выполнен!',
+          title: quest.reward || 'Quest Completed',
           bonus: quest.bonus,
           xp: quest.xp,
           type: 'main',
-          claimed: false,
-          earned_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (mainRewardError) {
-        console.error('❌ Error creating main reward:', mainRewardError);
-      } else {
-        console.log('✅ Main quest reward created:', createdMainReward);
-      }
-    } else if (!isQuestComplete && quest.completed) {
-      const { error: deleteMainRewardError } = await supabase
-        .from('rewards')
-        .delete()
-        .eq('quest_id', questId)
-        .eq('type', 'main')
-        .eq('claimed', false);
-
-      if (deleteMainRewardError) {
-        console.error('❌ Error deleting main reward:', deleteMainRewardError);
-      }
-    }
-        
-    // Обновляем локальное состояние квестов
-    setQuests(quests.map(q => {
-      if (q.id === questId) {
-        return {
-          ...q,
-          subtasks: updatedSubtasks,
-          progress: completedCount,
-          completed: isQuestComplete
+          claimed: false
         };
-      }
-      return q;
-    }));
 
-    // Ждем немного перед загрузкой наград, чтобы БД успела обновиться
-    setTimeout(async () => {
-      await loadRewards();
-    }, 500);
+        const { error: rewardError } = await supabase
+          .from('rewards')
+          .insert(rewardData);
 
-  } catch (error) {
-    console.error('❌ Error in toggleSubtask:', error);
-    alert('Ошибка: ' + error.message);
-  }
-};
-
-  const toggleQuest = async (questId) => {
-  try {
-    const quest = quests.find(q => q.id === questId);
-    if (!quest || quest.subtasks.length > 0) {
-      console.log('❌ Quest not found or has subtasks');
-      return;
-    }
-
-    const newCompletedStatus = !quest.completed;
-    console.log(`🔄 Toggling quest ${questId} to ${newCompletedStatus}`);
-
-    // Обновляем в базе данных
-    const { error: questUpdateError } = await supabase
-      .from('quests')
-      .update({ 
-        completed: newCompletedStatus,
-        progress: newCompletedStatus ? 1 : 0
-      })
-      .eq('id', questId);
-
-    if (questUpdateError) {
-      console.error('❌ Error updating quest:', questUpdateError);
-      alert('Ошибка обновления квеста: ' + questUpdateError.message);
-      return;
-    }
-
-    // Если квест выполнен - создаем награду в БД
-    if (newCompletedStatus && !quest.completed) {
-      const rewardData = {
-        user_id: user.id,
-        quest_id: quest.id,
-        quest_title: quest.title,
-        title: quest.reward || 'Quest Completed',
-        bonus: quest.bonus,
-        xp: quest.xp,
-        type: 'main',
-        claimed: false
-      };
-
-      const { error: rewardError } = await supabase
-        .from('rewards')
-        .insert(rewardData);
-
-      if (rewardError) {
-        console.error('❌ Error creating reward:', rewardError);
-      }
-    }
-    
-    // Если квест отменен - удаляем награду из БД
-    else if (!newCompletedStatus && quest.completed) {
-      const { error: deleteRewardError } = await supabase
-        .from('rewards')
-        .delete()
-        .eq('quest_id', questId)
-        .eq('type', 'main')
-        .eq('claimed', false);
-
-      if (deleteRewardError) {
-        console.error('❌ Error deleting reward:', deleteRewardError);
-      }
-    }
-
-    // Обновляем локальное состояние
-    setQuests(quests.map(q => {
-      if (q.id === questId) {
-        if (newCompletedStatus && !q.completed) {
-          setCurrentUser(prev => ({
-            ...prev,
-            completedQuests: prev.completedQuests + 1
-          }));
-        } else if (!newCompletedStatus && q.completed) {
-          setCurrentUser(prev => ({
-            ...prev,
-            completedQuests: Math.max(0, prev.completedQuests - 1)
-          }));
+        if (rewardError) {
+          console.error('❌ Error creating reward:', rewardError);
         }
-        
-        return { ...q, completed: newCompletedStatus, progress: newCompletedStatus ? 1 : 0 };
       }
-      return q;
-    }));
+      else if (!newCompletedStatus && quest.completed) {
+        const { error: deleteRewardError } = await supabase
+          .from('rewards')
+          .delete()
+          .eq('quest_id', questId)
+          .eq('type', 'main')
+          .eq('claimed', false);
 
-    // Перезагружаем награды
-    await loadRewards();
+        if (deleteRewardError) {
+          console.error('❌ Error deleting reward:', deleteRewardError);
+        }
+      }
 
-  } catch (error) {
-    console.error('❌ Error in toggleQuest:', error);
-    alert('Ошибка: ' + error.message);
-  }
-};
+      setQuests(quests.map(q => {
+        if (q.id === questId) {
+          if (newCompletedStatus && !q.completed) {
+            setCurrentUser(prev => ({
+              ...prev,
+              completedQuests: prev.completedQuests + 1
+            }));
+          } else if (!newCompletedStatus && q.completed) {
+            setCurrentUser(prev => ({
+              ...prev,
+              completedQuests: Math.max(0, prev.completedQuests - 1)
+            }));
+          }
+          
+          return { ...q, completed: newCompletedStatus, progress: newCompletedStatus ? 1 : 0 };
+        }
+        return q;
+      }));
+
+      await loadRewards();
+
+    } catch (error) {
+      console.error('❌ Error in toggleQuest:', error);
+      alert('Ошибка: ' + error.message);
+    }
+  };
 
   const expandQuest = (questId) => {
     setQuests(quests.map(quest => {
@@ -917,10 +898,10 @@ const loadRewards = async () => {
         quest.completed ? 'border-green-500/50' : difficultyColors[quest.difficulty]
       }`}
     >
-      <div className="p-6">
-        <div className="flex items-start justify-between">
+      <div className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between space-y-4 sm:space-y-0">
           <div className="flex-1">
-            <div className="flex items-center space-x-3 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <div className="flex items-center space-x-2">
                 {typeIcons[quest.type]}
                 <span className={`text-xs px-2 py-1 rounded-full border ${difficultyColors[quest.difficulty]} bg-black/30`}>
@@ -950,13 +931,13 @@ const loadRewards = async () => {
                 ) : (
                   quest.completed ? <CheckCircle className="w-5 h-5 text-green-400" /> : <Circle className="w-5 h-5" />
                 )}
-                <h3 className={`text-xl font-bold ${quest.completed ? 'line-through text-gray-500' : ''}`}>
+                <h3 className={`text-lg sm:text-xl font-bold ${quest.completed ? 'line-through text-gray-500' : ''}`}>
                   {quest.title}
                 </h3>
               </button>
             </div>
             
-            <p className="text-gray-400 mt-2">{quest.description}</p>
+            <p className="text-gray-400 mt-2 text-sm sm:text-base">{quest.description}</p>
             
             {quest.totalSteps > 1 && (
               <div className="mt-4">
@@ -974,17 +955,17 @@ const loadRewards = async () => {
             )}
           </div>
           
-          <div className="text-right ml-6">
-            <div className="flex items-center space-x-2 mb-2">
+          <div className="text-left sm:text-right sm:ml-6 space-y-2">
+            <div className="flex items-center space-x-2">
               <Zap className="w-4 h-4 text-blue-400" />
               <span className="text-blue-400 font-bold">{quest.xp} XP</span>
             </div>
-            <div className="flex items-center space-x-2 mb-2">
+            <div className="flex items-center space-x-2">
               <Trophy className="w-4 h-4 text-yellow-400" />
               <span className="text-yellow-400 text-sm">{quest.reward}</span>
             </div>
             {quest.bonus && (
-              <div className="flex items-center space-x-2 mb-2">
+              <div className="flex items-center space-x-2">
                 <Star className="w-4 h-4 text-purple-400" />
                 <span className="text-purple-400 text-sm">{quest.bonus}</span>
               </div>
@@ -1016,7 +997,7 @@ const loadRewards = async () => {
                     ) : (
                       <Circle className="w-4 h-4 text-gray-400" />
                     )}
-                    <span className={`${subtask.completed ? 'line-through text-gray-500' : ''}`}>
+                    <span className={`text-sm ${subtask.completed ? 'line-through text-gray-500' : ''}`}>
                       {subtask.title}
                     </span>
                   </div>
@@ -1046,13 +1027,13 @@ const loadRewards = async () => {
     return (
       <div>
         <div className="mb-6 bg-gray-800/30 rounded-xl p-4">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex items-center space-x-2">
               <Filter className="w-4 h-4 text-gray-400" />
               <select
                 value={localRewardFilter}
                 onChange={(e) => setLocalRewardFilter(e.target.value)}
-                className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm"
               >
                 <option value="all">Все награды</option>
                 <option value="pending">К получению</option>
@@ -1067,12 +1048,12 @@ const loadRewards = async () => {
                 placeholder="Поиск наград..."
                 value={localRewardSearch}
                 onChange={(e) => setLocalRewardSearch(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 text-sm"
               />
             </div>
           </div>
 
-          <div className="mt-4 flex items-center space-x-6 text-sm">
+          <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
               <span className="text-gray-400">К получению: {rewards.pending.length}</span>
@@ -1084,7 +1065,7 @@ const loadRewards = async () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {filteredRewards
             .filter(reward => 
               localRewardSearch === '' || 
@@ -1100,7 +1081,7 @@ const loadRewards = async () => {
                     : 'from-yellow-900/20 to-orange-900/20 border-yellow-400/30'
                 } border rounded-xl p-4`}
               >
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between space-y-4 sm:space-y-0">
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       {reward.type === 'main' ? (
@@ -1133,7 +1114,7 @@ const loadRewards = async () => {
                     </div>
                   </div>
                   
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <div className="flex items-center space-x-1 mb-2">
                       <Zap className="w-4 h-4 text-blue-400" />
                       <span className="text-blue-400 font-bold">{reward.xp} XP</span>
@@ -1258,92 +1239,89 @@ const loadRewards = async () => {
     };
     
     const addLocalNewQuest = async () => {
-  if (!localNewQuest.title.trim()) {
-    alert('Введите название квеста!');
-    return;
-  }
-  
-  try {
-    console.log('📝 Creating personal quest with subtasks:', localNewQuest.subtasks);
-    
-    const questData = {
-      title: localNewQuest.title,
-      description: localNewQuest.description,
-      type: localNewQuest.type,
-      difficulty: questType,
-      xp: questType === 'rare' ? 200 : 500,
-      reward: localNewQuest.reward,
-      bonus: localNewQuest.bonus,
-      due_date: localNewQuest.dueDate ? new Date(localNewQuest.dueDate).toISOString() : null,
-      created_by: user.id,
-      total_steps: localNewQuest.subtasks.length || 1
-    };
-
-    const { data: createdQuest, error: questError } = await supabase
-      .from('quests')
-      .insert(questData)
-      .select()
-      .single();
-
-    if (questError) {
-      console.error('❌ Error creating quest:', questError);
-      alert('Ошибка создания квеста: ' + questError.message);
-      return;
-    }
-
-    console.log('✅ Quest created:', createdQuest);
-
-    // ИСПРАВЛЕНО: Создаем подзадачи, если есть
-    if (localNewQuest.subtasks.length > 0) {
-      const subtasksData = localNewQuest.subtasks.map((subtask, index) => ({
-        quest_id: createdQuest.id,
-        title: subtask.title,
-        xp: subtask.xp || 50,
-        order_index: index,
-        completed: false
-      }));
-
-      console.log('📝 Creating subtasks:', subtasksData);
-
-      const { error: subtasksError } = await supabase
-        .from('quest_subtasks')
-        .insert(subtasksData);
-
-      if (subtasksError) {
-        console.error('❌ Error creating subtasks:', subtasksError);
-        alert('Ошибка создания подзадач: ' + subtasksError.message);
-      } else {
-        console.log('✅ Subtasks created successfully');
+      if (!localNewQuest.title.trim()) {
+        alert('Введите название квеста!');
+        return;
       }
-    }
+      
+      try {
+        console.log('📝 Creating personal quest with subtasks:', localNewQuest.subtasks);
+        
+        const questData = {
+          title: localNewQuest.title,
+          description: localNewQuest.description,
+          type: localNewQuest.type,
+          difficulty: questType,
+          xp: questType === 'rare' ? 200 : 500,
+          reward: localNewQuest.reward,
+          bonus: localNewQuest.bonus,
+          due_date: localNewQuest.dueDate ? new Date(localNewQuest.dueDate).toISOString() : null,
+          created_by: user.id,
+          total_steps: localNewQuest.subtasks.length || 1
+        };
 
-    // Очищаем форму
-    setLocalNewQuest({
-      title: '',
-      description: '',
-      type: 'main',
-      difficulty: 'rare',
-      xp: 200,
-      reward: '',
-      bonus: '',
-      dueDate: '',
-      assignedTo: null,
-      subtasks: []
-    });
-    setLocalShowNewQuest(false);
-    setQuestType('rare');
-    setShowSubtaskForm(false);
+        const { data: createdQuest, error: questError } = await supabase
+          .from('quests')
+          .insert(questData)
+          .select()
+          .single();
 
-    // Перезагружаем квесты
-    await loadQuests();
-    
-    alert('Квест создан!');
+        if (questError) {
+          console.error('❌ Error creating quest:', questError);
+          alert('Ошибка создания квеста: ' + questError.message);
+          return;
+        }
 
-  } catch (error) {
-    console.error('❌ Error creating personal quest:', error);
-    alert('Ошибка: ' + error.message);
-  }
-};
+        console.log('✅ Quest created:', createdQuest);
+
+        if (localNewQuest.subtasks.length > 0) {
+          const subtasksData = localNewQuest.subtasks.map((subtask, index) => ({
+            quest_id: createdQuest.id,
+            title: subtask.title,
+            xp: subtask.xp || 50,
+            order_index: index,
+            completed: false
+          }));
+
+          console.log('📝 Creating subtasks:', subtasksData);
+
+          const { error: subtasksError } = await supabase
+            .from('quest_subtasks')
+            .insert(subtasksData);
+
+          if (subtasksError) {
+            console.error('❌ Error creating subtasks:', subtasksError);
+            alert('Ошибка создания подзадач: ' + subtasksError.message);
+          } else {
+            console.log('✅ Subtasks created successfully');
+          }
+        }
+
+        setLocalNewQuest({
+          title: '',
+          description: '',
+          type: 'main',
+          difficulty: 'rare',
+          xp: 200,
+          reward: '',
+          bonus: '',
+          dueDate: '',
+          assignedTo: null,
+          subtasks: []
+        });
+        setLocalShowNewQuest(false);
+        setQuestType('rare');
+        setShowSubtaskForm(false);
+
+        await loadQuests();
+        
+        alert('Квест создан!');
+
+      } catch (error) {
+        console.error('❌ Error creating personal quest:', error);
+        alert('Ошибка: ' + error.message);
+      }
+    };
 
     return (
       <div>
@@ -1358,15 +1336,15 @@ const loadRewards = async () => {
         </div>
 
         <div className="mb-8 bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-xl p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="relative lg:col-span-2">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Поиск квестов..."
                 value={localQuestSearch}
                 onChange={(e) => setLocalQuestSearch(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
               />
             </div>
             
@@ -1375,7 +1353,7 @@ const loadRewards = async () => {
               <select
                 value={localStatusFilter}
                 onChange={(e) => setLocalStatusFilter(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-yellow-400 appearance-none"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-yellow-400 appearance-none text-sm"
               >
                 <option value="all">Все квесты</option>
                 <option value="pending">В ожидании</option>
@@ -1387,7 +1365,7 @@ const loadRewards = async () => {
             <select
               value={localSortBy}
               onChange={(e) => setLocalSortBy(e.target.value)}
-              className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-400"
+              className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-400 text-sm"
             >
               <option value="dueDate">По сроку</option>
               <option value="created">По дате создания</option>
@@ -1395,28 +1373,30 @@ const loadRewards = async () => {
               <option value="xp">По XP</option>
               <option value="alphabetical">По алфавиту</option>
             </select>
-            
+          </div>
+          
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <button
               onClick={() => setLocalSortOrder(localSortOrder === 'asc' ? 'desc' : 'asc')}
-              className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2"
+              className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2 text-sm"
             >
               <span>{localSortOrder === 'asc' ? '↑' : '↓'}</span>
               <span>{localSortOrder === 'asc' ? 'По возрастанию' : 'По убыванию'}</span>
             </button>
-          </div>
-          
-          <div className="mt-4 text-sm text-gray-400">
-            Показано {filteredAndSortedQuests.length} из {allMyQuests.length} квестов
+            
+            <div className="text-sm text-gray-400">
+              Показано {filteredAndSortedQuests.length} из {allMyQuests.length} квестов
+            </div>
           </div>
         </div>
 
         {localShowNewQuest && (
-          <div className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6">
+          <div className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 sm:p-6">
             <h3 className="text-xl font-bold mb-4 text-yellow-400">Создать новый квест</h3>
             
             <div className="mb-6">
               <label className="block text-sm font-medium mb-3">Тип квеста</label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button
                   onClick={() => {
                     setQuestType('rare');
@@ -1516,7 +1496,7 @@ const loadRewards = async () => {
                   {showSubtaskForm && (
                     <div className="mb-4 p-4 bg-gray-700/50 rounded-lg">
                       <label className="block text-sm font-medium mb-2">Название подзадачи</label>
-                      <div className="flex space-x-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <input
                           type="text"
                           placeholder="Введите название подзадачи"
@@ -1525,21 +1505,23 @@ const loadRewards = async () => {
                           onKeyPress={(e) => e.key === 'Enter' && addSubtask()}
                           className="flex-1 bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 text-white placeholder-gray-400"
                         />
-                        <button
-                          onClick={addSubtask}
-                          className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Добавить
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowSubtaskForm(false);
-                            setNewSubtaskTitle('');
-                          }}
-                          className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Отмена
-                        </button>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={addSubtask}
+                            className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Добавить
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowSubtaskForm(false);
+                              setNewSubtaskTitle('');
+                            }}
+                            className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Отмена
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1565,7 +1547,7 @@ const loadRewards = async () => {
               )}
             </div>
             
-            <div className="flex space-x-4 mt-6">
+            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
               <button
                 onClick={addLocalNewQuest}
                 className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-6 py-2 rounded-lg transition-all duration-200"
@@ -1625,7 +1607,7 @@ const loadRewards = async () => {
     return (
       <div>
         <div className="mb-6 bg-gray-800/30 rounded-xl p-4">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -1674,35 +1656,35 @@ const loadRewards = async () => {
                   />
                 </div>
                 
-              <div className="bg-gray-700/50 rounded-lg p-3 text-sm text-gray-400">
-                <div className="font-medium mb-2">Введите email пользователя:</div>
-                <div className="text-xs mb-2">
-                  Убедитесь, что пользователь уже зарегистрирован в системе
-                </div>
-                {allUsers.length > 0 && (
-                  <div>
-                    <div className="font-medium mb-2">Доступные пользователи:</div>
-                    <div className="space-y-1 max-h-32 overflow-y-auto">
-                      {allUsers.slice(0, 5).map(user => (
-                        <div key={user.id} className="flex items-center justify-between p-1 hover:bg-gray-600/50 rounded">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-6 h-6">{getAvatarIcon(user.avatar)}</div>
-                            <span>{user.name}</span>
-                          </div>
-                          <button
-                            onClick={() => setNewFriendEmail(user.email)}
-                            className="text-xs text-blue-400 hover:text-blue-300"
-                          >
-                            {user.email}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                <div className="bg-gray-700/50 rounded-lg p-3 text-sm text-gray-400">
+                  <div className="font-medium mb-2">Введите email пользователя:</div>
+                  <div className="text-xs mb-2">
+                    Убедитесь, что пользователь уже зарегистрирован в системе
                   </div>
-                )}
-              </div>
-                
-                <div className="flex space-x-3">
+                  {allUsers.length > 0 && (
+                    <div>
+                      <div className="font-medium mb-2">Доступные пользователи:</div>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {allUsers.slice(0, 5).map(user => (
+                          <div key={user.id} className="flex items-center justify-between p-1 hover:bg-gray-600/50 rounded">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-6 h-6">{getAvatarIcon(user.avatar)}</div>
+                              <span className="text-xs">{user.name}</span>
+                            </div>
+                            <button
+                              onClick={() => setNewFriendEmail(user.email)}
+                              className="text-xs text-blue-400 hover:text-blue-300 truncate max-w-[120px]"
+                            >
+                              {user.email}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                  
+                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                   <button
                     onClick={() => {
                       sendFriendRequest(newFriendEmail);
@@ -1734,19 +1716,19 @@ const loadRewards = async () => {
               <Bell className="w-5 h-5" />
               <span>Запросы в друзья ({friendRequests.length})</span>
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {friendRequests.map(request => (
                 <div key={request.request_id} className="bg-yellow-900/20 border border-yellow-400/30 rounded-xl p-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
                     <div className="flex items-center space-x-3">
                       <div>{getAvatarIcon(request.avatar)}</div>
                       <div>
                         <h4 className="font-bold text-white">{request.name}</h4>
                         <div className="text-sm text-gray-400">Уровень {request.level}</div>
-                        <div className="text-xs text-yellow-400">{request.email}</div>
+                        <div className="text-xs text-yellow-400 truncate">{request.email}</div>
                       </div>
                     </div>
-                    <div className="flex flex-col space-y-2">
+                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                       <button
                         onClick={() => acceptFriendRequest(request.request_id, request.id)}
                         className="bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm transition-colors"
@@ -1755,7 +1737,6 @@ const loadRewards = async () => {
                       </button>
                       <button
                         onClick={() => {
-                          // Можно добавить функцию отклонения заявки
                           alert('Функция отклонения будет добавлена');
                         }}
                         className="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-sm transition-colors"
@@ -1772,7 +1753,7 @@ const loadRewards = async () => {
 
         <div>
           <h3 className="text-xl font-bold mb-4">Мои друзья ({friends.length})</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {friends
               .filter(friend => 
                 localFriendSearch === '' || 
@@ -1782,8 +1763,8 @@ const loadRewards = async () => {
                 <div key={friend.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
                   <div className="flex items-center space-x-3">
                     <div>{getAvatarIcon(friend.avatar)}</div>
-                    <div className="flex-1">
-                      <h4 className="font-bold">{friend.name}</h4>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold truncate">{friend.name}</h4>
                       <div className="text-sm text-gray-400">Уровень {friend.level}</div>
                       <div className={`text-xs ${friend.status === 'online' ? 'text-green-400' : 'text-gray-500'}`}>
                         {friend.status === 'online' ? '● В сети' : '○ Не в сети'}
@@ -1842,104 +1823,100 @@ const loadRewards = async () => {
     };
     
     const createAssignedQuest = async () => {
-  if (!newAssignedQuest.title.trim()) {
-    alert('Введите название квеста!');
-    return;
-  }
-  
-  if (!newAssignedQuest.assignedTo) {
-    alert('Выберите друга!');
-    return;
-  }
-
-  try {
-    console.log('🎯 Creating assigned quest for friend:', newAssignedQuest.assignedTo);
-    console.log('🎯 With subtasks:', newAssignedQuest.subtasks);
-    
-    const questData = {
-      title: newAssignedQuest.title,
-      description: newAssignedQuest.description,
-      type: newAssignedQuest.type,
-      difficulty: assignedQuestType,
-      xp: assignedQuestType === 'rare' ? 200 : 500,
-      reward: newAssignedQuest.reward,
-      bonus: newAssignedQuest.bonus,
-      due_date: newAssignedQuest.dueDate ? new Date(newAssignedQuest.dueDate).toISOString() : null,
-      assigned_by: user.id,
-      assigned_to: newAssignedQuest.assignedTo,
-      created_by: user.id,
-      total_steps: newAssignedQuest.subtasks.length || 1
-    };
-
-    const { data: createdQuest, error: questError } = await supabase
-      .from('quests')
-      .insert(questData)
-      .select()
-      .single();
-
-    if (questError) {
-      console.error('❌ Error creating quest:', questError);
-      alert('Ошибка создания квеста: ' + questError.message);
-      return;
-    }
-
-    console.log('✅ Assigned quest created:', createdQuest);
-
-    // ИСПРАВЛЕНО: Создаем подзадачи для назначенного квеста
-    if (newAssignedQuest.subtasks.length > 0) {
-      const subtasksData = newAssignedQuest.subtasks.map((subtask, index) => ({
-        quest_id: createdQuest.id,
-        title: subtask.title,
-        xp: subtask.xp || 50,
-        order_index: index,
-        completed: false
-      }));
-
-      console.log('📝 Creating assigned quest subtasks:', subtasksData);
-
-      const { error: subtasksError } = await supabase
-        .from('quest_subtasks')
-        .insert(subtasksData);
-
-      if (subtasksError) {
-        console.error('❌ Error creating assigned subtasks:', subtasksError);
-        alert('Ошибка создания подзадач: ' + subtasksError.message);
-      } else {
-        console.log('✅ Assigned quest subtasks created successfully');
+      if (!newAssignedQuest.title.trim()) {
+        alert('Введите название квеста!');
+        return;
       }
-    }
+      
+      if (!newAssignedQuest.assignedTo) {
+        alert('Выберите друга!');
+        return;
+      }
 
-    // Получаем имя друга
-    const friend = friends.find(f => f.id === newAssignedQuest.assignedTo);
-    const friendName = friend ? friend.name : 'друга';
+      try {
+        console.log('🎯 Creating assigned quest for friend:', newAssignedQuest.assignedTo);
+        console.log('🎯 With subtasks:', newAssignedQuest.subtasks);
+        
+        const questData = {
+          title: newAssignedQuest.title,
+          description: newAssignedQuest.description,
+          type: newAssignedQuest.type,
+          difficulty: assignedQuestType,
+          xp: assignedQuestType === 'rare' ? 200 : 500,
+          reward: newAssignedQuest.reward,
+          bonus: newAssignedQuest.bonus,
+          due_date: newAssignedQuest.dueDate ? new Date(newAssignedQuest.dueDate).toISOString() : null,
+          assigned_by: user.id,
+          assigned_to: newAssignedQuest.assignedTo,
+          created_by: user.id,
+          total_steps: newAssignedQuest.subtasks.length || 1
+        };
 
-    // Очищаем форму
-    setNewAssignedQuest({
-      title: '',
-      description: '',
-      type: 'main',
-      difficulty: 'rare',
-      xp: 200,
-      reward: '',
-      bonus: '',
-      dueDate: '',
-      assignedTo: null,
-      subtasks: []
-    });
-    setShowNewAssignedQuest(false);
-    setAssignedQuestType('rare');
-    setShowAssignedSubtaskForm(false);
+        const { data: createdQuest, error: questError } = await supabase
+          .from('quests')
+          .insert(questData)
+          .select()
+          .single();
 
-    // Перезагружаем квесты
-    await loadQuests();
-    
-    alert(`Квест успешно назначен для ${friendName}!`);
+        if (questError) {
+          console.error('❌ Error creating quest:', questError);
+          alert('Ошибка создания квеста: ' + questError.message);
+          return;
+        }
 
-  } catch (error) {
-    console.error('❌ Error in createAssignedQuest:', error);
-    alert('Ошибка: ' + error.message);
-  }
-};
+        console.log('✅ Assigned quest created:', createdQuest);
+
+        if (newAssignedQuest.subtasks.length > 0) {
+          const subtasksData = newAssignedQuest.subtasks.map((subtask, index) => ({
+            quest_id: createdQuest.id,
+            title: subtask.title,
+            xp: subtask.xp || 50,
+            order_index: index,
+            completed: false
+          }));
+
+          console.log('📝 Creating assigned quest subtasks:', subtasksData);
+
+          const { error: subtasksError } = await supabase
+            .from('quest_subtasks')
+            .insert(subtasksData);
+
+          if (subtasksError) {
+            console.error('❌ Error creating assigned subtasks:', subtasksError);
+            alert('Ошибка создания подзадач: ' + subtasksError.message);
+          } else {
+            console.log('✅ Assigned quest subtasks created successfully');
+          }
+        }
+
+        const friend = friends.find(f => f.id === newAssignedQuest.assignedTo);
+        const friendName = friend ? friend.name : 'друга';
+
+        setNewAssignedQuest({
+          title: '',
+          description: '',
+          type: 'main',
+          difficulty: 'rare',
+          xp: 200,
+          reward: '',
+          bonus: '',
+          dueDate: '',
+          assignedTo: null,
+          subtasks: []
+        });
+        setShowNewAssignedQuest(false);
+        setAssignedQuestType('rare');
+        setShowAssignedSubtaskForm(false);
+
+        await loadQuests();
+        
+        alert(`Квест успешно назначен для ${friendName}!`);
+
+      } catch (error) {
+        console.error('❌ Error in createAssignedQuest:', error);
+        alert('Ошибка: ' + error.message);
+      }
+    };
 
     return (
       <div className="space-y-6">
@@ -1954,7 +1931,7 @@ const loadRewards = async () => {
         </div>
 
         {showNewAssignedQuest && (
-          <div className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6">
+          <div className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 sm:p-6">
             <h3 className="text-xl font-bold mb-4 text-blue-400">Создать задачу для друга</h3>
             
             <div className="mb-6">
@@ -1975,7 +1952,7 @@ const loadRewards = async () => {
             
             <div className="mb-6">
               <label className="block text-sm font-medium mb-3">Тип квеста</label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button
                   onClick={() => {
                     setAssignedQuestType('rare');
@@ -2014,7 +1991,8 @@ const loadRewards = async () => {
                 </button>
               </div>
             </div>
-            
+
+            {/* Остальная часть формы создания квеста */}
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Название {assignedQuestType === 'legendary' ? 'главного ' : ''}квеста</label>
@@ -2075,7 +2053,7 @@ const loadRewards = async () => {
                   {showAssignedSubtaskForm && (
                     <div className="mb-4 p-4 bg-gray-700/50 rounded-lg">
                       <label className="block text-sm font-medium mb-2">Название подзадачи</label>
-                      <div className="flex space-x-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <input
                           type="text"
                           placeholder="Введите название подзадачи"
@@ -2084,21 +2062,23 @@ const loadRewards = async () => {
                           onKeyPress={(e) => e.key === 'Enter' && addAssignedSubtask()}
                           className="flex-1 bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 text-white placeholder-gray-400"
                         />
-                        <button
-                          onClick={addAssignedSubtask}
-                          className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Добавить
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowAssignedSubtaskForm(false);
-                            setNewAssignedSubtaskTitle('');
-                          }}
-                          className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Отмена
-                        </button>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={addAssignedSubtask}
+                            className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Добавить
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowAssignedSubtaskForm(false);
+                              setNewAssignedSubtaskTitle('');
+                            }}
+                            className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Отмена
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2124,7 +2104,7 @@ const loadRewards = async () => {
               )}
             </div>
             
-            <div className="flex space-x-4 mt-6">
+            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
               <button
                 onClick={createAssignedQuest}
                 className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 px-6 py-2 rounded-lg transition-all duration-200"
@@ -2203,7 +2183,7 @@ const loadRewards = async () => {
     );
   }
 
-  // Auth screen
+  // Auth screen - УБРАНА ПОДПИСЬ О ПОЛНОЙ ВЕРСИИ
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
@@ -2213,13 +2193,6 @@ const loadRewards = async () => {
               <Sword className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
               <h1 className="text-3xl font-bold mb-2">Quest Manager</h1>
               <p className="text-gray-400">Превращай задачи в приключения</p>
-            </div>
-
-            <div className="bg-green-900/20 border border-green-600 rounded-lg p-4 mb-6">
-              <div className="text-green-400 text-sm mb-2">✅ Полная версия с Supabase</div>
-              <div className="text-xs text-gray-400">
-                Все функции + реальная база данных
-              </div>
             </div>
 
             <form onSubmit={handleAuth} className="space-y-4">
@@ -2311,24 +2284,34 @@ const loadRewards = async () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      {/* Header */}
       <div className="bg-black/50 backdrop-blur-sm border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Sword className="w-8 h-8 text-yellow-400" />
               <button
                 onClick={() => setActiveTab('profile')}
-                className="flex items-center space-x-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 px-4 py-2 rounded-lg transition-all duration-200 border border-gray-600 hover:border-gray-500"
+                className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 px-4 py-2 rounded-lg transition-all duration-200 border border-gray-600 hover:border-gray-500"
               >
                 <Mail className="w-4 h-4 text-blue-400" />
-                <span className="text-white font-medium">{currentUser.email}</span>
+                <span className="text-white font-medium truncate max-w-[150px]">{currentUser.email}</span>
+              </button>
+              
+              {/* Mobile menu button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="sm:hidden flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors"
+              >
+                <Menu className="w-4 h-4" />
               </button>
             </div>
             
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-3 sm:space-x-6">
+              {/* XP Progress - скрываем текст на мобильных */}
               <div className="text-right">
-                <div className="text-sm text-gray-400">Уровень {currentUser.level}</div>
-                <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div className="text-xs sm:text-sm text-gray-400">Уровень {currentUser.level}</div>
+                <div className="w-20 sm:w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300"
                     style={{ width: `${(currentUser.xp / currentUser.xpToNext) * 100}%` }}
@@ -2337,29 +2320,72 @@ const loadRewards = async () => {
                 <div className="text-xs text-gray-500">{currentUser.xp}/{currentUser.xpToNext} XP</div>
               </div>
               
+              {/* Achievements button */}
               <button
                 onClick={() => setShowAchievements(true)}
-                className="relative flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
+                className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-2 sm:px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
               >
                 <Trophy className="w-4 h-4" />
-                <span>{currentUser.completedQuests}</span>
+                <span className="text-sm">{currentUser.completedQuests}</span>
                 <Zap className="w-4 h-4" />
-                <span>{currentUser.totalXp}</span>
+                <span className="text-sm">{currentUser.totalXp}</span>
               </button>
 
+              {/* Logout button */}
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 bg-red-600 hover:bg-red-500 px-3 py-2 rounded-lg transition-colors"
+                className="flex items-center space-x-1 sm:space-x-2 bg-red-600 hover:bg-red-500 px-2 sm:px-3 py-2 rounded-lg transition-colors"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Выйти</span>
+                <span className="hidden sm:inline">Выйти</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-gray-800/30 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
+      {/* Mobile Navigation Menu */}
+      {mobileMenuOpen && (
+        <div className="sm:hidden bg-gray-800/95 backdrop-blur-sm border-b border-gray-700">
+          <div className="max-w-7xl mx-auto px-4 py-2">
+            <div className="grid grid-cols-2 gap-2">
+              {tabs.map(tab => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all relative ${
+                      activeTab === tab.id
+                        ? 'bg-gray-700 text-yellow-400'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="text-sm">{tab.label}</span>
+                    {tab.id === 'friends' && friendRequests.length > 0 && (
+                      <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {friendRequests.length}
+                      </div>
+                    )}
+                    {tab.id === 'rewards' && rewards.pending.length > 0 && (
+                      <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {rewards.pending.length}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Navigation Tabs */}
+      <div className="hidden sm:block bg-gray-800/30 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex space-x-1 overflow-x-auto">
             {tabs.map(tab => {
@@ -2393,12 +2419,13 @@ const loadRewards = async () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <div className="bg-gray-800/50 rounded-xl p-6">
+            <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6">
               <h3 className="text-xl font-bold mb-4">Быстрые действия</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <button
                   onClick={() => setActiveTab('my-quests')}
                   className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-lg p-4 transition-all"
@@ -2430,11 +2457,11 @@ const loadRewards = async () => {
               </div>
             </div>
 
-            <div className="bg-gray-800/50 rounded-xl p-6">
+            <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6">
               <h3 className="text-xl font-bold mb-4">Последняя активность</h3>
               <div className="space-y-3">
                 {rewards.pending.slice(0, 3).map(reward => (
-                  <div key={reward.id} className="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
+                  <div key={reward.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-gray-700/50 rounded-lg p-3 space-y-3 sm:space-y-0">
                     <div className="flex items-center space-x-3">
                       <Gift className="w-5 h-5 text-yellow-400" />
                       <div>
@@ -2444,7 +2471,7 @@ const loadRewards = async () => {
                     </div>
                     <button
                       onClick={() => claimReward(reward.id)}
-                      className="bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm transition-colors"
+                      className="bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm transition-colors w-full sm:w-auto"
                     >
                       Получить
                     </button>
@@ -2457,7 +2484,7 @@ const loadRewards = async () => {
         
         {activeTab === 'profile' && (
           <div className="max-w-2xl mx-auto">
-            <div className="bg-gray-800/50 rounded-xl p-6">
+            <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">Личный кабинет</h2>
                 <button
@@ -2481,7 +2508,7 @@ const loadRewards = async () => {
                   <div className="space-y-3 mt-6">
                     <div className="flex items-center space-x-3">
                       <Mail className="w-5 h-5 text-gray-400" />
-                      <span>{currentUser.email}</span>
+                      <span className="truncate">{currentUser.email}</span>
                     </div>
                     <div className="flex items-center space-x-3">
                       <Lock className="w-5 h-5 text-gray-400" />
@@ -2547,10 +2574,10 @@ const loadRewards = async () => {
                     </div>
                   </div>
 
-                  <div className="flex space-x-4 pt-4">
+                  <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 pt-4">
                     <button
                       onClick={saveProfile}
-                      className="flex items-center space-x-2 bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
+                      className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
                     >
                       <Save className="w-4 h-4" />
                       <span>Сохранить</span>
@@ -2583,6 +2610,7 @@ const loadRewards = async () => {
         {activeTab === 'assigned-quests' && <AssignedQuestsTab />}
       </div>
 
+      {/* Achievements Modal */}
       {showAchievements && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-600 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
