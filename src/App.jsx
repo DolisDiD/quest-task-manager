@@ -32,11 +32,11 @@ const QuestTaskManager = () => {
     id: 1,
     name: 'Герой',
     email: 'hero@quest.com',
-    level: 12,
-    xp: 2450,
-    xpToNext: 3000,
-    completedQuests: 8,
-    totalXp: 5680,
+    level: 1,
+    xp: 0,
+    xpToNext: 1000,
+    completedQuests: 0,
+    totalXp: 0,
     avatar: 'Hero'
   });
 
@@ -518,7 +518,33 @@ const QuestTaskManager = () => {
     }
   };
 
-  const acceptFriendRequest = async (requestId, fromUserId) => {
+  const removeFriend = async (friendId) => {
+    try {
+      console.log('🗑️ Removing friend:', friendId);
+      
+      // Удаляем дружбу из таблицы friends
+      const { error: deleteFriendError } = await supabase
+        .from('friends')
+        .delete()
+        .or(`and(user1_id.eq.${user.id},user2_id.eq.${friendId}),and(user1_id.eq.${friendId},user2_id.eq.${user.id})`);
+
+      if (deleteFriendError) {
+        console.error('❌ Error removing friend:', deleteFriendError);
+        alert('Ошибка удаления из друзей: ' + deleteFriendError.message);
+        return;
+      }
+
+      console.log('✅ Friend removed successfully');
+      
+      // Перезагружаем данные пользователя
+      await loadUserData();
+      alert('Пользователь удален из друзей');
+      
+    } catch (error) {
+      console.error('❌ Error in removeFriend:', error);
+      alert('Ошибка: ' + error.message);
+    }
+  };
     try {
       console.log('🤝 Accepting friend request:', requestId, 'from user:', fromUserId);
       
@@ -865,30 +891,33 @@ const QuestTaskManager = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
     
     const diffTime = targetDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return `Просрочено на ${Math.abs(diffDays)} дн.`;
-    if (diffDays === 0) return 'Сегодня';
-    if (diffDays === 1) return 'Завтра';
-    return `Осталось ${diffDays} дн.`;
+    // Форматируем время
+    const timeString = targetDate.toLocaleTimeString('ru-RU', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    if (diffDays < 0) return `Просрочено на ${Math.abs(diffDays)} дн. (${timeString})`;
+    if (diffDays === 0) return `Сегодня ${timeString}`;
+    if (diffDays === 1) return `Завтра ${timeString}`;
+    return `Осталось ${diffDays} дн. (${timeString})`;
   };
 
   const getDateColor = (date) => {
     if (!date) return 'text-gray-400';
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
     
     const diffTime = targetDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return 'text-red-400';
-    if (diffDays <= 1) return 'text-yellow-400';
-    if (diffDays <= 3) return 'text-orange-400';
+    if (diffTime < 0) return 'text-red-400'; // Просрочено
+    if (diffTime < 24 * 60 * 60 * 1000) return 'text-yellow-400'; // Меньше дня
+    if (diffDays <= 3) return 'text-orange-400'; // 3 дня или меньше
     return 'text-gray-400';
   };
 
@@ -1472,12 +1501,32 @@ const QuestTaskManager = () => {
               
               <div>
                 <label className="block text-sm font-medium mb-2">Дедлайн задачи</label>
-                <input
-                  type="date"
-                  value={localNewQuest.dueDate}
-                  onChange={(e) => setLocalNewQuest({ ...localNewQuest, dueDate: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={localNewQuest.dueDate ? localNewQuest.dueDate.split('T')[0] : ''}
+                    onChange={(e) => {
+                      const currentTime = localNewQuest.dueDate ? localNewQuest.dueDate.split('T')[1] || '23:59' : '23:59';
+                      setLocalNewQuest({ 
+                        ...localNewQuest, 
+                        dueDate: e.target.value ? `${e.target.value}T${currentTime}` : '' 
+                      });
+                    }}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+                  />
+                  <input
+                    type="time"
+                    value={localNewQuest.dueDate ? localNewQuest.dueDate.split('T')[1] || '23:59' : '23:59'}
+                    onChange={(e) => {
+                      const currentDate = localNewQuest.dueDate ? localNewQuest.dueDate.split('T')[0] : new Date().toISOString().split('T')[0];
+                      setLocalNewQuest({ 
+                        ...localNewQuest, 
+                        dueDate: `${currentDate}T${e.target.value}` 
+                      });
+                    }}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+                  />
+                </div>
               </div>
               
               {questType === 'legendary' && (
@@ -1761,15 +1810,28 @@ const QuestTaskManager = () => {
               )
               .map(friend => (
                 <div key={friend.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-                  <div className="flex items-center space-x-3">
-                    <div>{getAvatarIcon(friend.avatar)}</div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold truncate">{friend.name}</h4>
-                      <div className="text-sm text-gray-400">Уровень {friend.level}</div>
-                      <div className={`text-xs ${friend.status === 'online' ? 'text-green-400' : 'text-gray-500'}`}>
-                        {friend.status === 'online' ? '● В сети' : '○ Не в сети'}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div>{getAvatarIcon(friend.avatar)}</div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold truncate">{friend.name}</h4>
+                        <div className="text-sm text-gray-400">Уровень {friend.level}</div>
+                        <div className={`text-xs ${friend.status === 'online' ? 'text-green-400' : 'text-gray-500'}`}>
+                          {friend.status === 'online' ? '● В сети' : '○ Не в сети'}
+                        </div>
                       </div>
                     </div>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Удалить ${friend.name} из друзей?`)) {
+                          removeFriend(friend.id);
+                        }
+                      }}
+                      className="text-red-400 hover:text-red-300 transition-colors p-2 hover:bg-red-900/20 rounded-lg"
+                      title="Удалить из друзей"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -2029,12 +2091,32 @@ const QuestTaskManager = () => {
               
               <div>
                 <label className="block text-sm font-medium mb-2">Дедлайн задачи</label>
-                <input
-                  type="date"
-                  value={newAssignedQuest.dueDate}
-                  onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, dueDate: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={newAssignedQuest.dueDate ? newAssignedQuest.dueDate.split('T')[0] : ''}
+                    onChange={(e) => {
+                      const currentTime = newAssignedQuest.dueDate ? newAssignedQuest.dueDate.split('T')[1] || '23:59' : '23:59';
+                      setNewAssignedQuest({ 
+                        ...newAssignedQuest, 
+                        dueDate: e.target.value ? `${e.target.value}T${currentTime}` : '' 
+                      });
+                    }}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+                  />
+                  <input
+                    type="time"
+                    value={newAssignedQuest.dueDate ? newAssignedQuest.dueDate.split('T')[1] || '23:59' : '23:59'}
+                    onChange={(e) => {
+                      const currentDate = newAssignedQuest.dueDate ? newAssignedQuest.dueDate.split('T')[0] : new Date().toISOString().split('T')[0];
+                      setNewAssignedQuest({ 
+                        ...newAssignedQuest, 
+                        dueDate: `${currentDate}T${e.target.value}` 
+                      });
+                    }}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+                  />
+                </div>
               </div>
               
               {assignedQuestType === 'legendary' && (
