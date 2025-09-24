@@ -518,33 +518,7 @@ const QuestTaskManager = () => {
     }
   };
 
-  const removeFriend = async (friendId) => {
-    try {
-      console.log('🗑️ Removing friend:', friendId);
-      
-      // Удаляем дружбу из таблицы friends
-      const { error: deleteFriendError } = await supabase
-        .from('friends')
-        .delete()
-        .or(`and(user1_id.eq.${user.id},user2_id.eq.${friendId}),and(user1_id.eq.${friendId},user2_id.eq.${user.id})`);
-
-      if (deleteFriendError) {
-        console.error('❌ Error removing friend:', deleteFriendError);
-        alert('Ошибка удаления из друзей: ' + deleteFriendError.message);
-        return;
-      }
-
-      console.log('✅ Friend removed successfully');
-      
-      // Перезагружаем данные пользователя
-      await loadUserData();
-      alert('Пользователь удален из друзей');
-      
-    } catch (error) {
-      console.error('❌ Error in removeFriend:', error);
-      alert('Ошибка: ' + error.message);
-    }
-  };
+  const acceptFriendRequest = async (requestId, fromUserId) => {
     try {
       console.log('🤝 Accepting friend request:', requestId, 'from user:', fromUserId);
       
@@ -585,7 +559,6 @@ const QuestTaskManager = () => {
     }
   };
 
-  // Убеждаемся, что функция помечена как async
   const claimReward = async (rewardId) => {
     try {
       console.log('🎁 Claiming reward:', rewardId);
@@ -892,33 +865,30 @@ const QuestTaskManager = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
     
     const diffTime = targetDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // Форматируем время
-    const timeString = targetDate.toLocaleTimeString('ru-RU', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    
-    if (diffDays < 0) return `Просрочено на ${Math.abs(diffDays)} дн. (${timeString})`;
-    if (diffDays === 0) return `Сегодня ${timeString}`;
-    if (diffDays === 1) return `Завтра ${timeString}`;
-    return `Осталось ${diffDays} дн. (${timeString})`;
+    if (diffDays < 0) return `Просрочено на ${Math.abs(diffDays)} дн.`;
+    if (diffDays === 0) return 'Сегодня';
+    if (diffDays === 1) return 'Завтра';
+    return `Осталось ${diffDays} дн.`;
   };
 
   const getDateColor = (date) => {
     if (!date) return 'text-gray-400';
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
     
     const diffTime = targetDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffTime < 0) return 'text-red-400'; // Просрочено
-    if (diffTime < 24 * 60 * 60 * 1000) return 'text-yellow-400'; // Меньше дня
-    if (diffDays <= 3) return 'text-orange-400'; // 3 дня или меньше
+    if (diffDays < 0) return 'text-red-400';
+    if (diffDays <= 1) return 'text-yellow-400';
+    if (diffDays <= 3) return 'text-orange-400';
     return 'text-gray-400';
   };
 
@@ -1169,1303 +1139,1553 @@ const QuestTaskManager = () => {
     );
   };
 
-  const MyQuestsTab = () => {
-    const [localQuestSearch, setLocalQuestSearch] = useState('');
-    const [localStatusFilter, setLocalStatusFilter] = useState('all');
-    const [localSortBy, setLocalSortBy] = useState('dueDate');
-    const [localSortOrder, setLocalSortOrder] = useState('asc');
-    const [localShowNewQuest, setLocalShowNewQuest] = useState(false);
-    const [questType, setQuestType] = useState('rare');
-    const [localNewQuest, setLocalNewQuest] = useState({
-      title: '',
-      description: '',
-      type: 'main',
-      difficulty: 'rare',
-      xp: 200,
-      reward: '',
-      bonus: '',
-      dueDate: '',
-      assignedTo: null,
-      subtasks: []
+const MyQuestsTab = () => {
+  const [localQuestSearch, setLocalQuestSearch] = useState('');
+  const [localStatusFilter, setLocalStatusFilter] = useState('all');
+  const [localSortBy, setLocalSortBy] = useState('dueDate');
+  const [localSortOrder, setLocalSortOrder] = useState('asc');
+  const [localShowNewQuest, setLocalShowNewQuest] = useState(false);
+  const [questType, setQuestType] = useState('rare');
+  const [localNewQuest, setLocalNewQuest] = useState({
+    title: '',
+    description: '',
+    type: 'main',
+    difficulty: 'rare',
+    xp: 200,
+    reward: '',
+    bonus: '',
+    dueDate: '',
+    assignedTo: null,
+    subtasks: []
+  });
+  const [showSubtaskForm, setShowSubtaskForm] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  
+  const myQuests = getMyQuests();
+  const questsFromFriends = getQuestsFromFriends();
+  const allMyQuests = [...myQuests, ...questsFromFriends];
+  
+  const filterQuests = (quests) => {
+    let filtered = quests;
+    
+    if (localQuestSearch.trim()) {
+      filtered = filtered.filter(quest =>
+        quest.title.toLowerCase().includes(localQuestSearch.toLowerCase()) ||
+        quest.description.toLowerCase().includes(localQuestSearch.toLowerCase())
+      );
+    }
+    
+    if (localStatusFilter !== 'all') {
+      filtered = filtered.filter(quest => getQuestStatus(quest) === localStatusFilter);
+    }
+    
+    return filtered;
+  };
+  
+  const sortQuests = (quests) => {
+    const sorted = [...quests].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (localSortBy) {
+        case 'dueDate':
+          const dateA = a.dueDate || new Date('2099-12-31');
+          const dateB = b.dueDate || new Date('2099-12-31');
+          comparison = dateA - dateB;
+          break;
+        case 'created':
+          comparison = a.createdAt - b.createdAt;
+          break;
+        case 'difficulty':
+          const difficultyOrder = { common: 1, rare: 2, epic: 3, legendary: 4 };
+          comparison = difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
+          break;
+        case 'xp':
+          comparison = a.xp - b.xp;
+          break;
+        case 'alphabetical':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        default:
+          comparison = 0;
+      }
+      
+      return localSortOrder === 'desc' ? -comparison : comparison;
     });
-    const [showSubtaskForm, setShowSubtaskForm] = useState(false);
-    const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
     
-    const myQuests = getMyQuests();
-    const questsFromFriends = getQuestsFromFriends();
-    const allMyQuests = [...myQuests, ...questsFromFriends];
-    
-    const filterQuests = (quests) => {
-      let filtered = quests;
-      
-      if (localQuestSearch.trim()) {
-        filtered = filtered.filter(quest =>
-          quest.title.toLowerCase().includes(localQuestSearch.toLowerCase()) ||
-          quest.description.toLowerCase().includes(localQuestSearch.toLowerCase())
-        );
-      }
-      
-      if (localStatusFilter !== 'all') {
-        filtered = filtered.filter(quest => getQuestStatus(quest) === localStatusFilter);
-      }
-      
-      return filtered;
-    };
-    
-    const sortQuests = (quests) => {
-      const sorted = [...quests].sort((a, b) => {
-        let comparison = 0;
-        
-        switch (localSortBy) {
-          case 'dueDate':
-            const dateA = a.dueDate || new Date('2099-12-31');
-            const dateB = b.dueDate || new Date('2099-12-31');
-            comparison = dateA - dateB;
-            break;
-          case 'created':
-            comparison = a.createdAt - b.createdAt;
-            break;
-          case 'difficulty':
-            const difficultyOrder = { common: 1, rare: 2, epic: 3, legendary: 4 };
-            comparison = difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
-            break;
-          case 'xp':
-            comparison = a.xp - b.xp;
-            break;
-          case 'alphabetical':
-            comparison = a.title.localeCompare(b.title);
-            break;
-          default:
-            comparison = 0;
-        }
-        
-        return localSortOrder === 'desc' ? -comparison : comparison;
-      });
-      
-      return sorted;
-    };
-    
-    const filteredAndSortedQuests = sortQuests(filterQuests(allMyQuests));
-    
-    const addSubtask = () => {
-      if (newSubtaskTitle.trim()) {
-        setLocalNewQuest({
-          ...localNewQuest,
-          subtasks: [
-            ...localNewQuest.subtasks,
-            { id: Date.now(), title: newSubtaskTitle, completed: false, xp: 50 }
-          ]
-        });
-        setNewSubtaskTitle('');
-        setShowSubtaskForm(false);
-      }
-    };
-    
-    const removeSubtask = (subtaskId) => {
+    return sorted;
+  };
+  
+  const filteredAndSortedQuests = sortQuests(filterQuests(allMyQuests));
+  
+  const addSubtask = () => {
+    if (newSubtaskTitle.trim()) {
       setLocalNewQuest({
         ...localNewQuest,
-        subtasks: localNewQuest.subtasks.filter(st => st.id !== subtaskId)
+        subtasks: [
+          ...localNewQuest.subtasks,
+          { id: Date.now(), title: newSubtaskTitle, completed: false, xp: 50 }
+        ]
       });
-    };
+      setNewSubtaskTitle('');
+      setShowSubtaskForm(false);
+    }
+  };
+  
+  const removeSubtask = (subtaskId) => {
+    setLocalNewQuest({
+      ...localNewQuest,
+      subtasks: localNewQuest.subtasks.filter(st => st.id !== subtaskId)
+    });
+  };
+  
+  const addLocalNewQuest = async () => {
+    if (!localNewQuest.title.trim()) {
+      addNotification('Введите название квеста!', 'error');
+      return;
+    }
     
-    const addLocalNewQuest = async () => {
-      if (!localNewQuest.title.trim()) {
-        alert('Введите название квеста!');
+    try {
+      console.log('📝 Creating personal quest with subtasks:', localNewQuest.subtasks);
+      
+      const questData = {
+        title: localNewQuest.title,
+        description: localNewQuest.description,
+        type: localNewQuest.type,
+        difficulty: questType,
+        xp: questType === 'rare' ? 200 : 500,
+        reward: localNewQuest.reward,
+        bonus: localNewQuest.bonus,
+        due_date: localNewQuest.dueDate ? new Date(localNewQuest.dueDate).toISOString() : null,
+        created_by: user.id,
+        total_steps: localNewQuest.subtasks.length || 1
+      };
+
+      const { data: createdQuest, error: questError } = await supabase
+        .from('quests')
+        .insert(questData)
+        .select()
+        .single();
+
+      if (questError) {
+        console.error('⚠ Error creating quest:', questError);
+        addNotification('Ошибка создания квеста: ' + questError.message, 'error');
         return;
       }
-      
-      try {
-        console.log('📝 Creating personal quest with subtasks:', localNewQuest.subtasks);
-        
-        const questData = {
-          title: localNewQuest.title,
-          description: localNewQuest.description,
-          type: localNewQuest.type,
-          difficulty: questType,
-          xp: questType === 'rare' ? 200 : 500,
-          reward: localNewQuest.reward,
-          bonus: localNewQuest.bonus,
-          due_date: localNewQuest.dueDate ? new Date(localNewQuest.dueDate).toISOString() : null,
-          created_by: user.id,
-          total_steps: localNewQuest.subtasks.length || 1
-        };
 
-        const { data: createdQuest, error: questError } = await supabase
-          .from('quests')
-          .insert(questData)
-          .select()
-          .single();
+      console.log('✅ Quest created:', createdQuest);
 
-        if (questError) {
-          console.error('❌ Error creating quest:', questError);
-          alert('Ошибка создания квеста: ' + questError.message);
-          return;
+      if (localNewQuest.subtasks.length > 0) {
+        const subtasksData = localNewQuest.subtasks.map((subtask, index) => ({
+          quest_id: createdQuest.id,
+          title: subtask.title,
+          xp: subtask.xp || 50,
+          order_index: index,
+          completed: false
+        }));
+
+        console.log('📝 Creating subtasks:', subtasksData);
+
+        const { error: subtasksError } = await supabase
+          .from('quest_subtasks')
+          .insert(subtasksData);
+
+        if (subtasksError) {
+          console.error('⚠ Error creating subtasks:', subtasksError);
+          addNotification('Ошибка создания подзадач: ' + subtasksError.message, 'error');
+        } else {
+          console.log('✅ Subtasks created successfully');
         }
-
-        console.log('✅ Quest created:', createdQuest);
-
-        if (localNewQuest.subtasks.length > 0) {
-          const subtasksData = localNewQuest.subtasks.map((subtask, index) => ({
-            quest_id: createdQuest.id,
-            title: subtask.title,
-            xp: subtask.xp || 50,
-            order_index: index,
-            completed: false
-          }));
-
-          console.log('📝 Creating subtasks:', subtasksData);
-
-          const { error: subtasksError } = await supabase
-            .from('quest_subtasks')
-            .insert(subtasksData);
-
-          if (subtasksError) {
-            console.error('❌ Error creating subtasks:', subtasksError);
-            alert('Ошибка создания подзадач: ' + subtasksError.message);
-          } else {
-            console.log('✅ Subtasks created successfully');
-          }
-        }
-
-        setLocalNewQuest({
-          title: '',
-          description: '',
-          type: 'main',
-          difficulty: 'rare',
-          xp: 200,
-          reward: '',
-          bonus: '',
-          dueDate: '',
-          assignedTo: null,
-          subtasks: []
-        });
-        setLocalShowNewQuest(false);
-        setQuestType('rare');
-        setShowSubtaskForm(false);
-
-        await loadQuests();
-        
-        alert('Квест создан!');
-
-      } catch (error) {
-        console.error('❌ Error creating personal quest:', error);
-        alert('Ошибка: ' + error.message);
       }
-    };
 
-    return (
-      <div>
-        <div className="mb-6">
-          <button
-            onClick={() => setLocalShowNewQuest(!localShowNewQuest)}
-            className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Новый квест</span>
-          </button>
-        </div>
+      setLocalNewQuest({
+        title: '',
+        description: '',
+        type: 'main',
+        difficulty: 'rare',
+        xp: 200,
+        reward: '',
+        bonus: '',
+        dueDate: '',
+        assignedTo: null,
+        subtasks: []
+      });
+      setLocalShowNewQuest(false);
+      setQuestType('rare');
+      setShowSubtaskForm(false);
 
-        <div className="mb-8 bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-xl p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="relative lg:col-span-2">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Поиск квестов..."
-                value={localQuestSearch}
-                onChange={(e) => setLocalQuestSearch(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
-              />
-            </div>
-            
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={localStatusFilter}
-                onChange={(e) => setLocalStatusFilter(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-yellow-400 appearance-none text-sm"
-              >
-                <option value="all">Все квесты</option>
-                <option value="pending">В ожидании</option>
-                <option value="in-progress">В процессе</option>
-                <option value="completed">Выполнено</option>
-              </select>
-            </div>
-            
+      await loadQuests();
+      
+      addNotification('Квест создан!', 'success');
+
+    } catch (error) {
+      console.error('⚠ Error creating personal quest:', error);
+      addNotification('Ошибка: ' + error.message, 'error');
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <button
+          onClick={() => setLocalShowNewQuest(!localShowNewQuest)}
+          className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Новый квест</span>
+        </button>
+      </div>
+
+      <div className="mb-8 bg-gray-800/30 backdrop-blur-sm border border-gray-700 rounded-xl p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="relative lg:col-span-2">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Поиск квестов..."
+              value={localQuestSearch}
+              onChange={(e) => setLocalQuestSearch(e.target.value)}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
+            />
+          </div>
+          
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <select
-              value={localSortBy}
-              onChange={(e) => setLocalSortBy(e.target.value)}
-              className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-400 text-sm"
+              value={localStatusFilter}
+              onChange={(e) => setLocalStatusFilter(e.target.value)}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-yellow-400 appearance-none text-sm"
             >
-              <option value="dueDate">По сроку</option>
-              <option value="created">По дате создания</option>
-              <option value="difficulty">По сложности</option>
-              <option value="xp">По XP</option>
-              <option value="alphabetical">По алфавиту</option>
+              <option value="all">Все квесты</option>
+              <option value="pending">В ожидании</option>
+              <option value="in-progress">В процессе</option>
+              <option value="completed">Выполнено</option>
             </select>
           </div>
           
-          <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <button
-              onClick={() => setLocalSortOrder(localSortOrder === 'asc' ? 'desc' : 'asc')}
-              className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2 text-sm"
-            >
-              <span>{localSortOrder === 'asc' ? '↑' : '↓'}</span>
-              <span>{localSortOrder === 'asc' ? 'По возрастанию' : 'По убыванию'}</span>
-            </button>
-            
-            <div className="text-sm text-gray-400">
-              Показано {filteredAndSortedQuests.length} из {allMyQuests.length} квестов
-            </div>
+          <select
+            value={localSortBy}
+            onChange={(e) => setLocalSortBy(e.target.value)}
+            className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-400 text-sm"
+          >
+            <option value="dueDate">По сроку</option>
+            <option value="created">По дате создания</option>
+            <option value="difficulty">По сложности</option>
+            <option value="xp">По XP</option>
+            <option value="alphabetical">По алфавиту</option>
+          </select>
+        </div>
+        
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <button
+            onClick={() => setLocalSortOrder(localSortOrder === 'asc' ? 'desc' : 'asc')}
+            className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2 text-sm"
+          >
+            <span>{localSortOrder === 'asc' ? '↑' : '↓'}</span>
+            <span>{localSortOrder === 'asc' ? 'По возrastанию' : 'По убыванию'}</span>
+          </button>
+          
+          <div className="text-sm text-gray-400">
+            Показано {filteredAndSortedQuests.length} из {allMyQuests.length} квестов
           </div>
         </div>
+      </div>
 
-        {localShowNewQuest && (
-          <div className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 sm:p-6">
-            <h3 className="text-xl font-bold mb-4 text-yellow-400">Создать новый квест</h3>
+      {localShowNewQuest && (
+        <div className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 sm:p-6">
+          <h3 className="text-xl font-bold mb-4 text-yellow-400">Создать новый квест</h3>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-3">Тип квеста</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => {
+                  setQuestType('rare');
+                  setLocalNewQuest({ ...localNewQuest, difficulty: 'rare', subtasks: [] });
+                  setShowSubtaskForm(false);
+                }}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  questType === 'rare'
+                    ? 'border-blue-400 bg-blue-900/20'
+                    : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
+                }`}
+              >
+                <div className="flex items-center justify-center mb-2">
+                  <Star className="w-8 h-8 text-blue-400" />
+                </div>
+                <div className="font-bold text-blue-400">Rare</div>
+                <div className="text-xs text-gray-400 mt-1">Одиночная задача (200 XP)</div>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setQuestType('legendary');
+                  setLocalNewQuest({ ...localNewQuest, difficulty: 'legendary' });
+                }}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  questType === 'legendary'
+                    ? 'border-yellow-400 bg-yellow-900/20'
+                    : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
+                }`}
+              >
+                <div className="flex items-center justify-center mb-2">
+                  <Trophy className="w-8 h-8 text-yellow-400" />
+                </div>
+                <div className="font-bold text-yellow-400">Legendary</div>
+                <div className="text-xs text-gray-400 mt-1">С подзадачами (500 XP)</div>
+              </button>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Название {questType === 'legendary' ? 'главного ' : ''}квеста</label>
+              <input
+                type="text"
+                placeholder={`Название ${questType === 'legendary' ? 'главного ' : ''}квеста`}
+                value={localNewQuest.title}
+                onChange={(e) => setLocalNewQuest({ ...localNewQuest, title: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+              />
+            </div>
             
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-3">Тип квеста</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button
-                  onClick={() => {
-                    setQuestType('rare');
-                    setLocalNewQuest({ ...localNewQuest, difficulty: 'rare', subtasks: [] });
-                    setShowSubtaskForm(false);
-                  }}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    questType === 'rare'
-                      ? 'border-blue-400 bg-blue-900/20'
-                      : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="flex items-center justify-center mb-2">
-                    <Star className="w-8 h-8 text-blue-400" />
-                  </div>
-                  <div className="font-bold text-blue-400">Rare</div>
-                  <div className="text-xs text-gray-400 mt-1">Одиночная задача (200 XP)</div>
-                </button>
+            <div>
+              <label className="block text-sm font-medium mb-2">Описание квеста</label>
+              <textarea
+                placeholder="Описание квеста"
+                value={localNewQuest.description}
+                onChange={(e) => setLocalNewQuest({ ...localNewQuest, description: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+                rows="3"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Награда за квест</label>
+              <input
+                type="text"
+                placeholder="Награда за выполнение"
+                value={localNewQuest.reward}
+                onChange={(e) => setLocalNewQuest({ ...localNewQuest, reward: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Дедлайн задачи</label>
+              <input
+                type="date"
+                value={localNewQuest.dueDate}
+                onChange={(e) => setLocalNewQuest({ ...localNewQuest, dueDate: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+              />
+            </div>
+            
+            {questType === 'legendary' && (
+              <div className="mt-6 pt-6 border-t border-gray-600">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium">Подзадачи</h4>
+                  <button
+                    onClick={() => setShowSubtaskForm(!showSubtaskForm)}
+                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded-lg transition-colors text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Добавить подзадачу</span>
+                  </button>
+                </div>
                 
-                <button
-                  onClick={() => {
-                    setQuestType('legendary');
-                    setLocalNewQuest({ ...localNewQuest, difficulty: 'legendary' });
-                  }}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    questType === 'legendary'
-                      ? 'border-yellow-400 bg-yellow-900/20'
-                      : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="flex items-center justify-center mb-2">
-                    <Trophy className="w-8 h-8 text-yellow-400" />
+                {showSubtaskForm && (
+                  <div className="mb-4 p-4 bg-gray-700/50 rounded-lg">
+                    <label className="block text-sm font-medium mb-2">Название подзадачи</label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        placeholder="Введите название подзадачи"
+                        value={newSubtaskTitle}
+                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && addSubtask()}
+                        className="flex-1 bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+                      />
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={addSubtask}
+                          className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Добавить
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowSubtaskForm(false);
+                            setNewSubtaskTitle('');
+                          }}
+                          className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Отмена
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="font-bold text-yellow-400">Legendary</div>
-                  <div className="text-xs text-gray-400 mt-1">С подзадачами (500 XP)</div>
-                </button>
+                )}
+                
+                {localNewQuest.subtasks.length > 0 && (
+                  <div className="space-y-2">
+                    {localNewQuest.subtasks.map((subtask, index) => (
+                      <div key={subtask.id} className="flex items-center justify-between bg-gray-700/30 rounded p-3">
+                        <span className="text-sm">
+                          {index + 1}. {subtask.title}
+                        </span>
+                        <button
+                          onClick={() => removeSubtask(subtask.id)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+            )}
+          </div>
+          
+          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
+            <button
+              onClick={addLocalNewQuest}
+              className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-6 py-2 rounded-lg transition-all duration-200"
+            >
+              Создать квест
+            </button>
+            <button
+              onClick={() => {
+                setLocalShowNewQuest(false);
+                setLocalNewQuest({
+                  title: '',
+                  description: '',
+                  type: 'main',
+                  difficulty: 'rare',
+                  xp: 200,
+                  reward: '',
+                  bonus: '',
+                  dueDate: '',
+                  assignedTo: null,
+                  subtasks: []
+                });
+                setQuestType('rare');
+                setShowSubtaskForm(false);
+                setNewSubtaskTitle('');
+              }}
+              className="bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded-lg transition-all duration-200"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {filteredAndSortedQuests.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-lg mb-2">Квесты не найдены</div>
+            <div className="text-gray-500">Попробуйте изменить параметры поиска или фильтры</div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredAndSortedQuests.map(quest => (
+              <QuestCard key={quest.id} quest={quest} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+  const FriendsTab = () => {
+  const [showAddFriend, setShowAddFriend] = useState(false);
+  const [newFriendEmail, setNewFriendEmail] = useState('');
+  const [localFriendSearch, setLocalFriendSearch] = useState('');
+
+  return (
+    <div>
+      <div className="mb-6 bg-gray-800/30 rounded-xl p-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Поиск друзей..."
+              value={localFriendSearch}
+              onChange={(e) => setLocalFriendSearch(e.target.value)}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400"
+            />
+          </div>
+          <button
+            onClick={() => setShowAddFriend(true)}
+            className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-4 py-2 rounded-lg transition-all duration-200"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Добавить друга</span>
+          </button>
+        </div>
+      </div>
+
+      {showAddFriend && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-600 rounded-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-yellow-400">Добавить друга</h3>
+              <button
+                onClick={() => {
+                  setShowAddFriend(false);
+                  setNewFriendEmail('');
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Название {questType === 'legendary' ? 'главного ' : ''}квеста</label>
+                <label className="block text-sm font-medium mb-2">Email пользователя</label>
                 <input
-                  type="text"
-                  placeholder={`Название ${questType === 'legendary' ? 'главного ' : ''}квеста`}
-                  value={localNewQuest.title}
-                  onChange={(e) => setLocalNewQuest({ ...localNewQuest, title: e.target.value })}
+                  type="email"
+                  placeholder="friend@quest.com"
+                  value={newFriendEmail}
+                  onChange={(e) => setNewFriendEmail(e.target.value)}
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-2">Описание квеста</label>
-                <textarea
-                  placeholder="Описание квеста"
-                  value={localNewQuest.description}
-                  onChange={(e) => setLocalNewQuest({ ...localNewQuest, description: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                  rows="3"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Награда за квест</label>
-                <input
-                  type="text"
-                  placeholder="Награда за выполнение"
-                  value={localNewQuest.reward}
-                  onChange={(e) => setLocalNewQuest({ ...localNewQuest, reward: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Дедлайн задачи</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    value={localNewQuest.dueDate ? localNewQuest.dueDate.split('T')[0] : ''}
-                    onChange={(e) => {
-                      const currentTime = localNewQuest.dueDate ? localNewQuest.dueDate.split('T')[1] || '23:59' : '23:59';
-                      setLocalNewQuest({ 
-                        ...localNewQuest, 
-                        dueDate: e.target.value ? `${e.target.value}T${currentTime}` : '' 
-                      });
-                    }}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                  />
-                  <input
-                    type="time"
-                    value={localNewQuest.dueDate ? localNewQuest.dueDate.split('T')[1] || '23:59' : '23:59'}
-                    onChange={(e) => {
-                      const currentDate = localNewQuest.dueDate ? localNewQuest.dueDate.split('T')[0] : new Date().toISOString().split('T')[0];
-                      setLocalNewQuest({ 
-                        ...localNewQuest, 
-                        dueDate: `${currentDate}T${e.target.value}` 
-                      });
-                    }}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                  />
+              <div className="bg-gray-700/50 rounded-lg p-3 text-sm text-gray-400">
+                <div className="font-medium mb-2">Введите email пользователя:</div>
+                <div className="text-xs mb-2">
+                  Убедитесь, что пользователь уже зарегистрирован в системе
                 </div>
-              </div>
-              
-              {questType === 'legendary' && (
-                <div className="mt-6 pt-6 border-t border-gray-600">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-medium">Подзадачи</h4>
-                    <button
-                      onClick={() => setShowSubtaskForm(!showSubtaskForm)}
-                      className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded-lg transition-colors text-sm"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Добавить подзадачу</span>
-                    </button>
-                  </div>
-                  
-                  {showSubtaskForm && (
-                    <div className="mb-4 p-4 bg-gray-700/50 rounded-lg">
-                      <label className="block text-sm font-medium mb-2">Название подзадачи</label>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          type="text"
-                          placeholder="Введите название подзадачи"
-                          value={newSubtaskTitle}
-                          onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && addSubtask()}
-                          className="flex-1 bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                        />
-                        <div className="flex space-x-2">
+                {allUsers.length > 0 && (
+                  <div>
+                    <div className="font-medium mb-2">Доступные пользователи:</div>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {allUsers.slice(0, 5).map(user => (
+                        <div key={user.id} className="flex items-center justify-between p-1 hover:bg-gray-600/50 rounded">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6">{getAvatarIcon(user.avatar)}</div>
+                            <span className="text-xs">{user.name}</span>
+                          </div>
                           <button
-                            onClick={addSubtask}
-                            className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
+                            onClick={() => setNewFriendEmail(user.email)}
+                            className="text-xs text-blue-400 hover:text-blue-300 truncate max-w-[120px]"
                           >
-                            Добавить
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowSubtaskForm(false);
-                              setNewSubtaskTitle('');
-                            }}
-                            className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
-                          >
-                            Отмена
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {localNewQuest.subtasks.length > 0 && (
-                    <div className="space-y-2">
-                      {localNewQuest.subtasks.map((subtask, index) => (
-                        <div key={subtask.id} className="flex items-center justify-between bg-gray-700/30 rounded p-3">
-                          <span className="text-sm">
-                            {index + 1}. {subtask.title}
-                          </span>
-                          <button
-                            onClick={() => removeSubtask(subtask.id)}
-                            className="text-red-400 hover:text-red-300"
-                          >
-                            <X className="w-4 h-4" />
+                            {user.email}
                           </button>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
-              <button
-                onClick={addLocalNewQuest}
-                className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-6 py-2 rounded-lg transition-all duration-200"
-              >
-                Создать квест
-              </button>
-              <button
-                onClick={() => {
-                  setLocalShowNewQuest(false);
-                  setLocalNewQuest({
-                    title: '',
-                    description: '',
-                    type: 'main',
-                    difficulty: 'rare',
-                    xp: 200,
-                    reward: '',
-                    bonus: '',
-                    dueDate: '',
-                    assignedTo: null,
-                    subtasks: []
-                  });
-                  setQuestType('rare');
-                  setShowSubtaskForm(false);
-                  setNewSubtaskTitle('');
-                }}
-                className="bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded-lg transition-all duration-200"
-              >
-                Отмена
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-6">
-          {filteredAndSortedQuests.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-lg mb-2">Квесты не найдены</div>
-              <div className="text-gray-500">Попробуйте изменить параметры поиска или фильтры</div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredAndSortedQuests.map(quest => (
-                <QuestCard key={quest.id} quest={quest} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const FriendsTab = () => {
-    const [showAddFriend, setShowAddFriend] = useState(false);
-    const [newFriendEmail, setNewFriendEmail] = useState('');
-    const [localFriendSearch, setLocalFriendSearch] = useState('');
-
-    return (
-      <div>
-        <div className="mb-6 bg-gray-800/30 rounded-xl p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Поиск друзей..."
-                value={localFriendSearch}
-                onChange={(e) => setLocalFriendSearch(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400"
-              />
-            </div>
-            <button
-              onClick={() => setShowAddFriend(true)}
-              className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-4 py-2 rounded-lg transition-all duration-200"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Добавить друга</span>
-            </button>
-          </div>
-        </div>
-
-        {showAddFriend && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-600 rounded-xl max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-yellow-400">Добавить друга</h3>
+                  </div>
+                )}
+              </div>
+                
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                <button
+                  onClick={() => {
+                    sendFriendRequest(newFriendEmail);
+                    setNewFriendEmail('');
+                    setShowAddFriend(false);
+                  }}
+                  className="flex-1 bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
+                >
+                  Отправить запрос
+                </button>
                 <button
                   onClick={() => {
                     setShowAddFriend(false);
                     setNewFriendEmail('');
                   }}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="flex-1 bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  Отмена
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {friendRequests.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-xl font-bold mb-4 text-yellow-400 flex items-center space-x-2">
+            <Bell className="w-5 h-5" />
+            <span>Запросы в друзья ({friendRequests.length})</span>
+          </h3>
+          <div className="grid grid-cols-1 gap-4">
+            {friendRequests.map(request => (
+              <div key={request.request_id} className="bg-yellow-900/20 border border-yellow-400/30 rounded-xl p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
+                  <div className="flex items-center space-x-3">
+                    <div>{getAvatarIcon(request.avatar)}</div>
+                    <div>
+                      <h4 className="font-bold text-white">{request.name}</h4>
+                      <div className="text-sm text-gray-400">Уровень {request.level}</div>
+                      <div className="text-xs text-yellow-400 truncate">{request.email}</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                    <button
+                      onClick={() => acceptFriendRequest(request.request_id, request.id)}
+                      className="bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm transition-colors"
+                    >
+                      Принять
+                    </button>
+                    <button
+                      onClick={() => {
+                        addNotification('Функция отклонения будет добавлена', 'info');
+                      }}
+                      className="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-sm transition-colors"
+                    >
+                      Отклонить
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h3 className="text-xl font-bold mb-4">Мои друзья ({friends.length})</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {friends
+            .filter(friend => 
+              localFriendSearch === '' || 
+              friend.name.toLowerCase().includes(localFriendSearch.toLowerCase())
+            )
+            .map(friend => (
+              <div key={friend.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+                <div className="flex items-center space-x-3">
+                  <div>{getAvatarIcon(friend.avatar)}</div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold truncate">{friend.name}</h4>
+                    <div className="text-sm text-gray-400">Уровень {friend.level}</div>
+                    <div className={`text-xs ${friend.status === 'online' ? 'text-green-400' : 'text-gray-500'}`}>
+                      {friend.status === 'online' ? '● В сети' : '○ Не в сети'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+        </div>
+        {friends.length === 0 && (
+          <div className="text-center py-12">
+            <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <div className="text-gray-400 text-lg mb-2">У вас пока нет друзей</div>
+            <div className="text-gray-500">Добавьте друзей, чтобы делиться квестами!</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+  const AssignedQuestsTab = () => {
+  const [showNewAssignedQuest, setShowNewAssignedQuest] = useState(false);
+  const [assignedQuestType, setAssignedQuestType] = useState('rare');
+  const [newAssignedQuest, setNewAssignedQuest] = useState({
+    title: '',
+    description: '',
+    type: 'main',
+    difficulty: 'rare',
+    xp: 200,
+    reward: '',
+    bonus: '',
+    dueDate: '',
+    assignedTo: null,
+    subtasks: []
+  });
+  const [showAssignedSubtaskForm, setShowAssignedSubtaskForm] = useState(false);
+  const [newAssignedSubtaskTitle, setNewAssignedSubtaskTitle] = useState('');
+  
+  const assignedQuests = getQuestsToFriends();
+  const activeQuests = assignedQuests.filter(q => !q.completed);
+  const completedQuests = assignedQuests.filter(q => q.completed);
+  
+  const addAssignedSubtask = () => {
+    if (newAssignedSubtaskTitle.trim()) {
+      setNewAssignedQuest({
+        ...newAssignedQuest,
+        subtasks: [
+          ...newAssignedQuest.subtasks,
+          { id: Date.now(), title: newAssignedSubtaskTitle, completed: false, xp: 50 }
+        ]
+      });
+      setNewAssignedSubtaskTitle('');
+      setShowAssignedSubtaskForm(false);
+    }
+  };
+  
+  const removeAssignedSubtask = (subtaskId) => {
+    setNewAssignedQuest({
+      ...newAssignedQuest,
+      subtasks: newAssignedQuest.subtasks.filter(st => st.id !== subtaskId)
+    });
+  };
+  
+  const createAssignedQuest = async () => {
+    if (!newAssignedQuest.title.trim()) {
+      addNotification('Введите название квеста!', 'error');
+      return;
+    }
+    
+    if (!newAssignedQuest.assignedTo) {
+      addNotification('Выберите друга!', 'error');
+      return;
+    }
+
+    try {
+      console.log('🎯 Creating assigned quest for friend:', newAssignedQuest.assignedTo);
+      console.log('🎯 With subtasks:', newAssignedQuest.subtasks);
+      
+      const questData = {
+        title: newAssignedQuest.title,
+        description: newAssignedQuest.description,
+        type: newAssignedQuest.type,
+        difficulty: assignedQuestType,
+        xp: assignedQuestType === 'rare' ? 200 : 500,
+        reward: newAssignedQuest.reward,
+        bonus: newAssignedQuest.bonus,
+        due_date: newAssignedQuest.dueDate ? new Date(newAssignedQuest.dueDate).toISOString() : null,
+        assigned_by: user.id,
+        assigned_to: newAssignedQuest.assignedTo,
+        created_by: user.id,
+        total_steps: newAssignedQuest.subtasks.length || 1
+      };
+
+      const { data: createdQuest, error: questError } = await supabase
+        .from('quests')
+        .insert(questData)
+        .select()
+        .single();
+
+      if (questError) {
+        console.error('⚠ Error creating quest:', questError);
+        addNotification('Ошибка создания квеста: ' + questError.message, 'error');
+        return;
+      }
+
+      console.log('✅ Assigned quest created:', createdQuest);
+
+      if (newAssignedQuest.subtasks.length > 0) {
+        const subtasksData = newAssignedQuest.subtasks.map((subtask, index) => ({
+          quest_id: createdQuest.id,
+          title: subtask.title,
+          xp: subtask.xp || 50,
+          order_index: index,
+          completed: false
+        }));
+
+        console.log('📝 Creating assigned quest subtasks:', subtasksData);
+
+        const { error: subtasksError } = await supabase
+          .from('quest_subtasks')
+          .insert(subtasksData);
+
+        if (subtasksError) {
+          console.error('⚠ Error creating assigned subtasks:', subtasksError);
+          addNotification('Ошибка создания подзадач: ' + subtasksError.message, 'error');
+        } else {
+          console.log('✅ Assigned quest subtasks created successfully');
+        }
+      }
+
+      const friend = friends.find(f => f.id === newAssignedQuest.assignedTo);
+      const friendName = friend ? friend.name : 'друга';
+
+      setNewAssignedQuest({
+        title: '',
+        description: '',
+        type: 'main',
+        difficulty: 'rare',
+        xp: 200,
+        reward: '',
+        bonus: '',
+        dueDate: '',
+        assignedTo: null,
+        subtasks: []
+      });
+      setShowNewAssignedQuest(false);
+      setAssignedQuestType('rare');
+      setShowAssignedSubtaskForm(false);
+
+      await loadQuests();
+      
+      addNotification(`Квест успешно назначен для ${friendName}!`, 'success');
+
+    } catch (error) {
+      console.error('⚠ Error in createAssignedQuest:', error);
+      addNotification('Ошибка: ' + error.message, 'error');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <button
+          onClick={() => setShowNewAssignedQuest(!showNewAssignedQuest)}
+          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
+        >
+          <Send className="w-4 h-4" />
+          <span>Поставить задачу другу</span>
+        </button>
+      </div>
+
+      {showNewAssignedQuest && (
+        <div className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 sm:p-6">
+          <h3 className="text-xl font-bold mb-4 text-blue-400">Создать задачу для друга</h3>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-3">Выберите друга *</label>
+            <select
+              value={newAssignedQuest.assignedTo || ''}
+              onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, assignedTo: e.target.value })}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white mb-4"
+            >
+              <option value="">-- Выберите друга --</option>
+              {friends.map(friend => (
+                <option key={friend.id} value={friend.id}>
+                  {friend.name} (Уровень {friend.level})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-3">Тип квеста</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => {
+                  setAssignedQuestType('rare');
+                  setNewAssignedQuest({ ...newAssignedQuest, difficulty: 'rare', subtasks: [] });
+                  setShowAssignedSubtaskForm(false);
+                }}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  assignedQuestType === 'rare'
+                    ? 'border-blue-400 bg-blue-900/20'
+                    : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
+                }`}
+              >
+                <div className="flex items-center justify-center mb-2">
+                  <Star className="w-8 h-8 text-blue-400" />
+                </div>
+                <div className="font-bold text-blue-400">Rare</div>
+                <div className="text-xs text-gray-400 mt-1">Одиночная задача (200 XP)</div>
+              </button>
               
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Email пользователя</label>
-                  <input
-                    type="email"
-                    placeholder="friend@quest.com"
-                    value={newFriendEmail}
-                    onChange={(e) => setNewFriendEmail(e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                  />
+              <button
+                onClick={() => {
+                  setAssignedQuestType('legendary');
+                  setNewAssignedQuest({ ...newAssignedQuest, difficulty: 'legendary' });
+                }}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  assignedQuestType === 'legendary'
+                    ? 'border-yellow-400 bg-yellow-900/20'
+                    : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
+                }`}
+              >
+                <div className="flex items-center justify-center mb-2">
+                  <Trophy className="w-8 h-8 text-yellow-400" />
+                </div>
+                <div className="font-bold text-yellow-400">Legendary</div>
+                <div className="text-xs text-gray-400 mt-1">С подзадачами (500 XP)</div>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Название {assignedQuestType === 'legendary' ? 'главного ' : ''}квеста</label>
+              <input
+                type="text"
+                placeholder={`Название ${assignedQuestType === 'legendary' ? 'главного ' : ''}квеста`}
+                value={newAssignedQuest.title}
+                onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, title: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Описание квеста</label>
+              <textarea
+                placeholder="Описание квеста"
+                value={newAssignedQuest.description}
+                onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, description: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+                rows="3"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Награда за квест</label>
+              <input
+                type="text"
+                placeholder="Награда за выполнение"
+                value={newAssignedQuest.reward}
+                onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, reward: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Дедлайн задачи</label>
+              <input
+                type="date"
+                value={newAssignedQuest.dueDate}
+                onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, dueDate: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+              />
+            </div>
+            
+            {assignedQuestType === 'legendary' && (
+              <div className="mt-6 pt-6 border-t border-gray-600">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium">Подзадачи</h4>
+                  <button
+                    onClick={() => setShowAssignedSubtaskForm(!showAssignedSubtaskForm)}
+                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded-lg transition-colors text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Добавить подзадачу</span>
+                  </button>
                 </div>
                 
-                <div className="bg-gray-700/50 rounded-lg p-3 text-sm text-gray-400">
-                  <div className="font-medium mb-2">Введите email пользователя:</div>
-                  <div className="text-xs mb-2">
-                    Убедитесь, что пользователь уже зарегистрирован в системе
-                  </div>
-                  {allUsers.length > 0 && (
-                    <div>
-                      <div className="font-medium mb-2">Доступные пользователи:</div>
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {allUsers.slice(0, 5).map(user => (
-                          <div key={user.id} className="flex items-center justify-between p-1 hover:bg-gray-600/50 rounded">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-6 h-6">{getAvatarIcon(user.avatar)}</div>
-                              <span className="text-xs">{user.name}</span>
-                            </div>
-                            <button
-                              onClick={() => setNewFriendEmail(user.email)}
-                              className="text-xs text-blue-400 hover:text-blue-300 truncate max-w-[120px]"
-                            >
-                              {user.email}
-                            </button>
-                          </div>
-                        ))}
+                {showAssignedSubtaskForm && (
+                  <div className="mb-4 p-4 bg-gray-700/50 rounded-lg">
+                    <label className="block text-sm font-medium mb-2">Название подзадачи</label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        placeholder="Введите название подзадачи"
+                        value={newAssignedSubtaskTitle}
+                        onChange={(e) => setNewAssignedSubtaskTitle(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && addAssignedSubtask()}
+                        className="flex-1 bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 text-white placeholder-gray-400"
+                      />
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={addAssignedSubtask}
+                          className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Добавить
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowAssignedSubtaskForm(false);
+                            setNewAssignedSubtaskTitle('');
+                          }}
+                          className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Отмена
+                        </button>
                       </div>
                     </div>
+                  </div>
+                )}
+                
+                {newAssignedQuest.subtasks.length > 0 && (
+                  <div className="space-y-2">
+                    {newAssignedQuest.subtasks.map((subtask, index) => (
+                      <div key={subtask.id} className="flex items-center justify-between bg-gray-700/30 rounded p-3">
+                        <span className="text-sm">
+                          {index + 1}. {subtask.title}
+                        </span>
+                        <button
+                          onClick={() => removeAssignedSubtask(subtask.id)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
+            <button
+              onClick={createAssignedQuest}
+              className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 px-6 py-2 rounded-lg transition-all duration-200"
+            >
+              Создать квест
+            </button>
+            <button
+              onClick={() => {
+                setShowNewAssignedQuest(false);
+                setNewAssignedQuest({
+                  title: '',
+                  description: '',
+                  type: 'main',
+                  difficulty: 'rare',
+                  xp: 200,
+                  reward: '',
+                  bonus: '',
+                  dueDate: '',
+                  assignedTo: null,
+                  subtasks: []
+                });
+                setAssignedQuestType('rare');
+                setShowAssignedSubtaskForm(false);
+                setNewAssignedSubtaskTitle('');
+              }}
+              className="bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded-lg transition-all duration-200"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeQuests.length > 0 && (
+        <div>
+          <h3 className="text-xl font-bold mb-4 text-yellow-400">Активные задания</h3>
+          <div className="space-y-4">
+            {activeQuests.map(quest => (
+              <QuestCard key={quest.id} quest={quest} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {completedQuests.length > 0 && (
+        <div>
+          <h3 className="text-xl font-bold mb-4 text-green-400">Выполненные задания</h3>
+          <div className="space-y-4">
+            {completedQuests.map(quest => (
+              <QuestCard key={quest.id} quest={quest} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {assignedQuests.length === 0 && (
+        <div className="text-center py-12">
+          <Send className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <div className="text-gray-400 text-lg mb-2">Нет поставленных заданий</div>
+          <div className="text-gray-500">Создайте квест и назначьте его другу!</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+  // Loading screen
+  // Loading screen
+if (loading) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white flex items-center justify-center">
+      <div className="text-center">
+        <Sword className="w-16 h-16 text-yellow-400 mx-auto mb-4 animate-pulse" />
+        <div className="text-xl">Загрузка...</div>
+      </div>
+    </div>
+  );
+}
+
+// Auth screen - УЛУЧШЕННАЯ ПОЛНАЯ ВЕРСИЯ
+if (!user) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl max-w-md w-full p-8">
+          <div className="text-center mb-8">
+            <Sword className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold mb-2">Quest Manager</h1>
+            <p className="text-gray-400">Превращай задачи в приключения</p>
+          </div>
+
+          <form onSubmit={handleAuth} className="space-y-4">
+            {authMode === 'register' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Имя</label>
+                <input
+                  type="text"
+                  required
+                  value={authForm.name}
+                  onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                  placeholder="Ваше имя"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Email</label>
+              <input
+                type="email"
+                required
+                value={authForm.email}
+                onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                placeholder="your@email.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Пароль</label>
+              <input
+                type="password"
+                required
+                value={authForm.password}
+                onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {authMode === 'register' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Подтвердите пароль</label>
+                <input
+                  type="password"
+                  required
+                  value={authForm.confirmPassword}
+                  onChange={(e) => setAuthForm({ ...authForm, confirmPassword: e.target.value })}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                  placeholder="••••••••"
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+            >
+              {authMode === 'login' ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+              <span>{authMode === 'login' ? 'Войти' : 'Зарегистрироваться'}</span>
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+              className="text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              {authMode === 'login' 
+                ? 'Нет аккаунта? Зарегистрироваться' 
+                : 'Уже есть аккаунт? Войти'
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const tabs = [
+  { id: 'dashboard', label: 'Главная', icon: Home },
+  { id: 'my-quests', label: 'Мои задания', icon: ListChecks },
+  { id: 'rewards', label: 'Награды', icon: Trophy },
+  { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
+  { id: 'friends', label: 'Друзья', icon: Users }
+];
+
+return (
+  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+    {/* НОВОЕ: Система уведомлений */}
+    <NotificationSystem />
+
+    {/* Header */}
+    <div className="bg-black/50 backdrop-blur-sm border-b border-gray-700">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Sword className="w-8 h-8 text-yellow-400" />
+            <button
+              onClick={() => setActiveTab('profile')}
+              className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 px-4 py-2 rounded-lg transition-all duration-200 border border-gray-600 hover:border-gray-500"
+            >
+              <Mail className="w-4 h-4 text-blue-400" />
+              <span className="text-white font-medium truncate max-w-[150px]">{currentUser.email}</span>
+            </button>
+            
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="sm:hidden flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-3 sm:space-x-6">
+            {/* XP Progress - скрываем текст на мобильных */}
+            <div className="text-right">
+              <div className="text-xs sm:text-sm text-gray-400">Уровень {currentUser.level}</div>
+              <div className="w-20 sm:w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300"
+                  style={{ width: `${(currentUser.xp / currentUser.xpToNext) * 100}%` }}
+                />
+              </div>
+              <div className="text-xs text-gray-500">{currentUser.xp}/{currentUser.xpToNext} XP</div>
+            </div>
+            
+            {/* Achievements button */}
+            <button
+              onClick={() => setShowAchievements(true)}
+              className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-2 sm:px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
+            >
+              <Trophy className="w-4 h-4" />
+              <span className="text-sm">{currentUser.completedQuests}</span>
+              <Zap className="w-4 h-4" />
+              <span className="text-sm">{currentUser.totalXp}</span>
+            </button>
+
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-1 sm:space-x-2 bg-red-600 hover:bg-red-500 px-2 sm:px-3 py-2 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Выйти</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Mobile Navigation Menu */}
+    {mobileMenuOpen && (
+      <div className="sm:hidden bg-gray-800/95 backdrop-blur-sm border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 py-2">
+          <div className="grid grid-cols-2 gap-2">
+            {tabs.map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all relative ${
+                    activeTab === tab.id
+                      ? 'bg-gray-700 text-yellow-400'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm">{tab.label}</span>
+                  {tab.id === 'friends' && friendRequests.length > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {friendRequests.length}
+                    </div>
                   )}
-                </div>
-                  
-                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                  {tab.id === 'rewards' && rewards.pending.length > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {rewards.pending.length}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Desktop Navigation Tabs */}
+    <div className="hidden sm:block bg-gray-800/30 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex space-x-1 overflow-x-auto">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center space-x-2 px-4 py-3 rounded-t-lg transition-all relative ${
+                  activeTab === tab.id
+                    ? 'bg-gray-700 text-yellow-400 border-b-2 border-yellow-400'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="whitespace-nowrap">{tab.label}</span>
+                {tab.id === 'friends' && friendRequests.length > 0 && (
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {friendRequests.length}
+                  </div>
+                )}
+                {tab.id === 'rewards' && rewards.pending.length > 0 && (
+                  <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {rewards.pending.length}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+
+    {/* Main Content */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      {activeTab === 'dashboard' && (
+        <div className="space-y-6">
+          <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6">
+            <h3 className="text-xl font-bold mb-4">Быстрые действия</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <button
+                onClick={() => setActiveTab('my-quests')}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-lg p-4 transition-all"
+              >
+                <ListChecks className="w-6 h-6 mb-2 mx-auto" />
+                <div className="text-sm">Мои квесты</div>
+              </button>
+              <button
+                onClick={() => setActiveTab('rewards')}
+                className="bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 rounded-lg p-4 transition-all"
+              >
+                <Trophy className="w-6 h-6 mb-2 mx-auto" />
+                <div className="text-sm">Награды</div>
+              </button>
+              <button
+                onClick={() => setActiveTab('friends')}
+                className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 rounded-lg p-4 transition-all"
+              >
+                <Users className="w-6 h-6 mb-2 mx-auto" />
+                <div className="text-sm">Друзья</div>
+              </button>
+              <button
+                onClick={() => setShowAchievements(true)}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 rounded-lg p-4 transition-all"
+              >
+                <Award className="w-6 h-6 mb-2 mx-auto" />
+                <div className="text-sm">Достижения</div>
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6">
+            <h3 className="text-xl font-bold mb-4">Последняя активность</h3>
+            <div className="space-y-3">
+              {rewards.pending.slice(0, 3).map(reward => (
+                <div key={reward.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-gray-700/50 rounded-lg p-3 space-y-3 sm:space-y-0">
+                  <div className="flex items-center space-x-3">
+                    <Gift className="w-5 h-5 text-yellow-400" />
+                    <div>
+                      <div className="font-medium">{reward.reward}</div>
+                      <div className="text-xs text-gray-400">от {reward.questTitle}</div>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => {
-                      sendFriendRequest(newFriendEmail);
-                      setNewFriendEmail('');
-                      setShowAddFriend(false);
-                    }}
-                    className="flex-1 bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
+                    onClick={() => claimReward(reward.id)}
+                    className="bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm transition-colors w-full sm:w-auto"
                   >
-                    Отправить запрос
+                    Получить
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {activeTab === 'profile' && (
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Личный кабинет</h2>
+              <button
+                onClick={() => setEditingProfile(!editingProfile)}
+                className="text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                {editingProfile ? <X className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
+              </button>
+            </div>
+
+            {!editingProfile ? (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <div>{getAvatarIcon(currentUser.avatar)}</div>
+                  <div>
+                    <h3 className="text-xl font-bold">{currentUser.name}</h3>
+                    <div className="text-gray-400">Уровень {currentUser.level} • {currentUser.totalXp} XP</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 mt-6">
+                  <div className="flex items-center space-x-3">
+                    <Mail className="w-5 h-5 text-gray-400" />
+                    <span className="truncate">{currentUser.email}</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Lock className="w-5 h-5 text-gray-400" />
+                    <span>••••••••</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Trophy className="w-5 h-5 text-gray-400" />
+                    <span>{currentUser.completedQuests} квестов выполнено</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Users className="w-5 h-5 text-gray-400" />
+                    <span>{friends.length} друзей</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Имя</label>
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                  />
+                </div>
+
+                <div className="border-t border-gray-700 pt-4">
+                  <h4 className="font-medium mb-3">Изменить пароль</h4>
+                  
+                  <div className="space-y-3">
+                    <input
+                      type="password"
+                      placeholder="Старый пароль"
+                      value={profileForm.oldPassword}
+                      onChange={(e) => setProfileForm({ ...profileForm, oldPassword: e.target.value })}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Новый пароль"
+                      value={profileForm.newPassword}
+                      onChange={(e) => setProfileForm({ ...profileForm, newPassword: e.target.value })}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Подтвердите новый пароль"
+                      value={profileForm.confirmPassword}
+                      onChange={(e) => setProfileForm({ ...profileForm, confirmPassword: e.target.value })}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 pt-4">
+                  <button
+                    onClick={saveProfile}
+                    className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Сохранить</span>
                   </button>
                   <button
                     onClick={() => {
-                      setShowAddFriend(false);
-                      setNewFriendEmail('');
+                      setEditingProfile(false);
+                      setProfileForm({
+                        name: currentUser.name,
+                        email: currentUser.email,
+                        oldPassword: '',
+                        newPassword: '',
+                        confirmPassword: ''
+                      });
                     }}
-                    className="flex-1 bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
+                    className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
                   >
                     Отмена
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {friendRequests.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-xl font-bold mb-4 text-yellow-400 flex items-center space-x-2">
-              <Bell className="w-5 h-5" />
-              <span>Запросы в друзья ({friendRequests.length})</span>
-            </h3>
-            <div className="grid grid-cols-1 gap-4">
-              {friendRequests.map(request => (
-                <div key={request.request_id} className="bg-yellow-900/20 border border-yellow-400/30 rounded-xl p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
-                    <div className="flex items-center space-x-3">
-                      <div>{getAvatarIcon(request.avatar)}</div>
-                      <div>
-                        <h4 className="font-bold text-white">{request.name}</h4>
-                        <div className="text-sm text-gray-400">Уровень {request.level}</div>
-                        <div className="text-xs text-yellow-400 truncate">{request.email}</div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                      <button
-                        onClick={() => acceptFriendRequest(request.request_id, request.id)}
-                        className="bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm transition-colors"
-                      >
-                        Принять
-                      </button>
-                      <button
-                        onClick={() => {
-                          alert('Функция отклонения будет добавлена');
-                        }}
-                        className="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-sm transition-colors"
-                      >
-                        Отклонить
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <h3 className="text-xl font-bold mb-4">Мои друзья ({friends.length})</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {friends
-              .filter(friend => 
-                localFriendSearch === '' || 
-                friend.name.toLowerCase().includes(localFriendSearch.toLowerCase())
-              )
-              .map(friend => (
-                <div key={friend.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div>{getAvatarIcon(friend.avatar)}</div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold truncate">{friend.name}</h4>
-                        <div className="text-sm text-gray-400">Уровень {friend.level}</div>
-                        <div className={`text-xs ${friend.status === 'online' ? 'text-green-400' : 'text-gray-500'}`}>
-                          {friend.status === 'online' ? '● В сети' : '○ Не в сети'}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Удалить ${friend.name} из друзей?`)) {
-                          removeFriend(friend.id);
-                        }
-                      }}
-                      className="text-red-400 hover:text-red-300 transition-colors p-2 hover:bg-red-900/20 rounded-lg"
-                      title="Удалить из друзей"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const AssignedQuestsTab = () => {
-    const [showNewAssignedQuest, setShowNewAssignedQuest] = useState(false);
-    const [assignedQuestType, setAssignedQuestType] = useState('rare');
-    const [newAssignedQuest, setNewAssignedQuest] = useState({
-      title: '',
-      description: '',
-      type: 'main',
-      difficulty: 'rare',
-      xp: 200,
-      reward: '',
-      bonus: '',
-      dueDate: '',
-      assignedTo: null,
-      subtasks: []
-    });
-    const [showAssignedSubtaskForm, setShowAssignedSubtaskForm] = useState(false);
-    const [newAssignedSubtaskTitle, setNewAssignedSubtaskTitle] = useState('');
-    
-    const assignedQuests = getQuestsToFriends();
-    const activeQuests = assignedQuests.filter(q => !q.completed);
-    const completedQuests = assignedQuests.filter(q => q.completed);
-    
-    const addAssignedSubtask = () => {
-      if (newAssignedSubtaskTitle.trim()) {
-        setNewAssignedQuest({
-          ...newAssignedQuest,
-          subtasks: [
-            ...newAssignedQuest.subtasks,
-            { id: Date.now(), title: newAssignedSubtaskTitle, completed: false, xp: 50 }
-          ]
-        });
-        setNewAssignedSubtaskTitle('');
-        setShowAssignedSubtaskForm(false);
-      }
-    };
-    
-    const removeAssignedSubtask = (subtaskId) => {
-      setNewAssignedQuest({
-        ...newAssignedQuest,
-        subtasks: newAssignedQuest.subtasks.filter(st => st.id !== subtaskId)
-      });
-    };
-    
-    const createAssignedQuest = async () => {
-      if (!newAssignedQuest.title.trim()) {
-        alert('Введите название квеста!');
-        return;
-      }
-      
-      if (!newAssignedQuest.assignedTo) {
-        alert('Выберите друга!');
-        return;
-      }
-
-      try {
-        console.log('🎯 Creating assigned quest for friend:', newAssignedQuest.assignedTo);
-        console.log('🎯 With subtasks:', newAssignedQuest.subtasks);
-        
-        const questData = {
-          title: newAssignedQuest.title,
-          description: newAssignedQuest.description,
-          type: newAssignedQuest.type,
-          difficulty: assignedQuestType,
-          xp: assignedQuestType === 'rare' ? 200 : 500,
-          reward: newAssignedQuest.reward,
-          bonus: newAssignedQuest.bonus,
-          due_date: newAssignedQuest.dueDate ? new Date(newAssignedQuest.dueDate).toISOString() : null,
-          assigned_by: user.id,
-          assigned_to: newAssignedQuest.assignedTo,
-          created_by: user.id,
-          total_steps: newAssignedQuest.subtasks.length || 1
-        };
-
-        const { data: createdQuest, error: questError } = await supabase
-          .from('quests')
-          .insert(questData)
-          .select()
-          .single();
-
-        if (questError) {
-          console.error('❌ Error creating quest:', questError);
-          alert('Ошибка создания квеста: ' + questError.message);
-          return;
-        }
-
-        console.log('✅ Assigned quest created:', createdQuest);
-
-        if (newAssignedQuest.subtasks.length > 0) {
-          const subtasksData = newAssignedQuest.subtasks.map((subtask, index) => ({
-            quest_id: createdQuest.id,
-            title: subtask.title,
-            xp: subtask.xp || 50,
-            order_index: index,
-            completed: false
-          }));
-
-          console.log('📝 Creating assigned quest subtasks:', subtasksData);
-
-          const { error: subtasksError } = await supabase
-            .from('quest_subtasks')
-            .insert(subtasksData);
-
-          if (subtasksError) {
-            console.error('❌ Error creating assigned subtasks:', subtasksError);
-            alert('Ошибка создания подзадач: ' + subtasksError.message);
-          } else {
-            console.log('✅ Assigned quest subtasks created successfully');
-          }
-        }
-
-        const friend = friends.find(f => f.id === newAssignedQuest.assignedTo);
-        const friendName = friend ? friend.name : 'друга';
-
-        setNewAssignedQuest({
-          title: '',
-          description: '',
-          type: 'main',
-          difficulty: 'rare',
-          xp: 200,
-          reward: '',
-          bonus: '',
-          dueDate: '',
-          assignedTo: null,
-          subtasks: []
-        });
-        setShowNewAssignedQuest(false);
-        setAssignedQuestType('rare');
-        setShowAssignedSubtaskForm(false);
-
-        await loadQuests();
-        
-        alert(`Квест успешно назначен для ${friendName}!`);
-
-      } catch (error) {
-        console.error('❌ Error in createAssignedQuest:', error);
-        alert('Ошибка: ' + error.message);
-      }
-    };
-
-    return (
-      <div className="space-y-6">
-        <div>
-          <button
-            onClick={() => setShowNewAssignedQuest(!showNewAssignedQuest)}
-            className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
-          >
-            <Send className="w-4 h-4" />
-            <span>Поставить задачу другу</span>
-          </button>
-        </div>
-
-        {showNewAssignedQuest && (
-          <div className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 sm:p-6">
-            <h3 className="text-xl font-bold mb-4 text-blue-400">Создать задачу для друга</h3>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-3">Выберите друга *</label>
-              <select
-                value={newAssignedQuest.assignedTo || ''}
-                onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, assignedTo: e.target.value })}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white mb-4"
-              >
-                <option value="">-- Выберите друга --</option>
-                {friends.map(friend => (
-                  <option key={friend.id} value={friend.id}>
-                    {friend.name} (Уровень {friend.level})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-3">Тип квеста</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button
-                  onClick={() => {
-                    setAssignedQuestType('rare');
-                    setNewAssignedQuest({ ...newAssignedQuest, difficulty: 'rare', subtasks: [] });
-                    setShowAssignedSubtaskForm(false);
-                  }}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    assignedQuestType === 'rare'
-                      ? 'border-blue-400 bg-blue-900/20'
-                      : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="flex items-center justify-center mb-2">
-                    <Star className="w-8 h-8 text-blue-400" />
-                  </div>
-                  <div className="font-bold text-blue-400">Rare</div>
-                  <div className="text-xs text-gray-400 mt-1">Одиночная задача (200 XP)</div>
-                </button>
-                
-                <button
-                  onClick={() => {
-                    setAssignedQuestType('legendary');
-                    setNewAssignedQuest({ ...newAssignedQuest, difficulty: 'legendary' });
-                  }}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    assignedQuestType === 'legendary'
-                      ? 'border-yellow-400 bg-yellow-900/20'
-                      : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
-                  }`}
-                >
-                  <div className="flex items-center justify-center mb-2">
-                    <Trophy className="w-8 h-8 text-yellow-400" />
-                  </div>
-                  <div className="font-bold text-yellow-400">Legendary</div>
-                  <div className="text-xs text-gray-400 mt-1">С подзадачами (500 XP)</div>
-                </button>
-              </div>
-            </div>
-
-            {/* Остальная часть формы создания квеста */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Название {assignedQuestType === 'legendary' ? 'главного ' : ''}квеста</label>
-                <input
-                  type="text"
-                  placeholder={`Название ${assignedQuestType === 'legendary' ? 'главного ' : ''}квеста`}
-                  value={newAssignedQuest.title}
-                  onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, title: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Описание квеста</label>
-                <textarea
-                  placeholder="Описание квеста"
-                  value={newAssignedQuest.description}
-                  onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, description: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                  rows="3"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Награда за квест</label>
-                <input
-                  type="text"
-                  placeholder="Награда за выполнение"
-                  value={newAssignedQuest.reward}
-                  onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, reward: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Дедлайн задачи</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    value={newAssignedQuest.dueDate ? newAssignedQuest.dueDate.split('T')[0] : ''}
-                    onChange={(e) => {
-                      const currentTime = newAssignedQuest.dueDate ? newAssignedQuest.dueDate.split('T')[1] || '23:59' : '23:59';
-                      setNewAssignedQuest({ 
-                        ...newAssignedQuest, 
-                        dueDate: e.target.value ? `${e.target.value}T${currentTime}` : '' 
-                      });
-                    }}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                  />
-                  <input
-                    type="time"
-                    value={newAssignedQuest.dueDate ? newAssignedQuest.dueDate.split('T')[1] || '23:59' : '23:59'}
-                    onChange={(e) => {
-                      const currentDate = newAssignedQuest.dueDate ? newAssignedQuest.dueDate.split('T')[0] : new Date().toISOString().split('T')[0];
-                      setNewAssignedQuest({ 
-                        ...newAssignedQuest, 
-                        dueDate: `${currentDate}T${e.target.value}` 
-                      });
-                    }}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                  />
-                </div>
-              </div>
-              
-              {assignedQuestType === 'legendary' && (
-                <div className="mt-6 pt-6 border-t border-gray-600">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-medium">Подзадачи</h4>
-                    <button
-                      onClick={() => setShowAssignedSubtaskForm(!showAssignedSubtaskForm)}
-                      className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded-lg transition-colors text-sm"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Добавить подзадачу</span>
-                    </button>
-                  </div>
-                  
-                  {showAssignedSubtaskForm && (
-                    <div className="mb-4 p-4 bg-gray-700/50 rounded-lg">
-                      <label className="block text-sm font-medium mb-2">Название подзадачи</label>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          type="text"
-                          placeholder="Введите название подзадачи"
-                          value={newAssignedSubtaskTitle}
-                          onChange={(e) => setNewAssignedSubtaskTitle(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && addAssignedSubtask()}
-                          className="flex-1 bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                        />
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={addAssignedSubtask}
-                            className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg transition-colors"
-                          >
-                            Добавить
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowAssignedSubtaskForm(false);
-                              setNewAssignedSubtaskTitle('');
-                            }}
-                            className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg transition-colors"
-                          >
-                            Отмена
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {newAssignedQuest.subtasks.length > 0 && (
-                    <div className="space-y-2">
-                      {newAssignedQuest.subtasks.map((subtask, index) => (
-                        <div key={subtask.id} className="flex items-center justify-between bg-gray-700/30 rounded p-3">
-                          <span className="text-sm">
-                            {index + 1}. {subtask.title}
-                          </span>
-                          <button
-                            onClick={() => removeAssignedSubtask(subtask.id)}
-                            className="text-red-400 hover:text-red-300"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
-              <button
-                onClick={createAssignedQuest}
-                className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 px-6 py-2 rounded-lg transition-all duration-200"
-              >
-                Создать квест
-              </button>
-              <button
-                onClick={() => {
-                  setShowNewAssignedQuest(false);
-                  setNewAssignedQuest({
-                    title: '',
-                    description: '',
-                    type: 'main',
-                    difficulty: 'rare',
-                    xp: 200,
-                    reward: '',
-                    bonus: '',
-                    dueDate: '',
-                    assignedTo: null,
-                    subtasks: []
-                  });
-                  setAssignedQuestType('rare');
-                  setShowAssignedSubtaskForm(false);
-                  setNewAssignedSubtaskTitle('');
-                }}
-                className="bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded-lg transition-all duration-200"
-              >
-                Отмена
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeQuests.length > 0 && (
-          <div>
-            <h3 className="text-xl font-bold mb-4 text-yellow-400">Активные задания</h3>
-            <div className="space-y-4">
-              {activeQuests.map(quest => (
-                <QuestCard key={quest.id} quest={quest} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {completedQuests.length > 0 && (
-          <div>
-            <h3 className="text-xl font-bold mb-4 text-green-400">Выполненные задания</h3>
-            <div className="space-y-4">
-              {completedQuests.map(quest => (
-                <QuestCard key={quest.id} quest={quest} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {assignedQuests.length === 0 && (
-          <div className="text-center py-12">
-            <Send className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <div className="text-gray-400 text-lg mb-2">Нет поставленных заданий</div>
-            <div className="text-gray-500">Создайте квест и назначьте его другу!</div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Loading screen
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <Sword className="w-16 h-16 text-yellow-400 mx-auto mb-4 animate-pulse" />
-          <div className="text-xl">Загрузка...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Auth screen - УБРАНА ПОДПИСЬ О ПОЛНОЙ ВЕРСИИ
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl max-w-md w-full p-8">
-            <div className="text-center mb-8">
-              <Sword className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-              <h1 className="text-3xl font-bold mb-2">Quest Manager</h1>
-              <p className="text-gray-400">Превращай задачи в приключения</p>
-            </div>
-
-            <form onSubmit={handleAuth} className="space-y-4">
-              {authMode === 'register' && (
-                <div>
-                  <label className="block text-sm font-medium mb-2">Имя</label>
-                  <input
-                    type="text"
-                    required
-                    value={authForm.name}
-                    onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                    placeholder="Ваше имя"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={authForm.email}
-                  onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                  placeholder="your@email.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Пароль</label>
-                <input
-                  type="password"
-                  required
-                  value={authForm.password}
-                  onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                  placeholder="••••••••"
-                />
-              </div>
-
-              {authMode === 'register' && (
-                <div>
-                  <label className="block text-sm font-medium mb-2">Подтвердите пароль</label>
-                  <input
-                    type="password"
-                    required
-                    value={authForm.confirmPassword}
-                    onChange={(e) => setAuthForm({ ...authForm, confirmPassword: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                    placeholder="••••••••"
-                  />
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                {authMode === 'login' ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                <span>{authMode === 'login' ? 'Войти' : 'Зарегистрироваться'}</span>
-              </button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                className="text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                {authMode === 'login' 
-                  ? 'Нет аккаунта? Зарегистрироваться' 
-                  : 'Уже есть аккаунт? Войти'
-                }
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const tabs = [
-    { id: 'dashboard', label: 'Главная', icon: Home },
-    { id: 'my-quests', label: 'Мои задания', icon: ListChecks },
-    { id: 'rewards', label: 'Награды', icon: Trophy },
-    { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
-    { id: 'friends', label: 'Друзья', icon: Users }
-  ];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      {/* Header */}
-      <div className="bg-black/50 backdrop-blur-sm border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Sword className="w-8 h-8 text-yellow-400" />
-              <button
-                onClick={() => setActiveTab('profile')}
-                className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 px-4 py-2 rounded-lg transition-all duration-200 border border-gray-600 hover:border-gray-500"
-              >
-                <Mail className="w-4 h-4 text-blue-400" />
-                <span className="text-white font-medium truncate max-w-[150px]">{currentUser.email}</span>
-              </button>
-              
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="sm:hidden flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors"
-              >
-                <Menu className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="flex items-center space-x-3 sm:space-x-6">
-              {/* XP Progress - скрываем текст на мобильных */}
-              <div className="text-right">
-                <div className="text-xs sm:text-sm text-gray-400">Уровень {currentUser.level}</div>
-                <div className="w-20 sm:w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300"
-                    style={{ width: `${(currentUser.xp / currentUser.xpToNext) * 100}%` }}
-                  />
-                </div>
-                <div className="text-xs text-gray-500">{currentUser.xp}/{currentUser.xpToNext} XP</div>
-              </div>
-              
-              {/* Achievements button */}
-              <button
-                onClick={() => setShowAchievements(true)}
-                className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-2 sm:px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
-              >
-                <Trophy className="w-4 h-4" />
-                <span className="text-sm">{currentUser.completedQuests}</span>
-                <Zap className="w-4 h-4" />
-                <span className="text-sm">{currentUser.totalXp}</span>
-              </button>
-
-              {/* Logout button */}
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-1 sm:space-x-2 bg-red-600 hover:bg-red-500 px-2 sm:px-3 py-2 rounded-lg transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Выйти</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Navigation Menu */}
-      {mobileMenuOpen && (
-        <div className="sm:hidden bg-gray-800/95 backdrop-blur-sm border-b border-gray-700">
-          <div className="max-w-7xl mx-auto px-4 py-2">
-            <div className="grid grid-cols-2 gap-2">
-              {tabs.map(tab => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all relative ${
-                      activeTab === tab.id
-                        ? 'bg-gray-700 text-yellow-400'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="text-sm">{tab.label}</span>
-                    {tab.id === 'friends' && friendRequests.length > 0 && (
-                      <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {friendRequests.length}
-                      </div>
-                    )}
-                    {tab.id === 'rewards' && rewards.pending.length > 0 && (
-                      <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {rewards.pending.length}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            )}
           </div>
         </div>
       )}
+      
+      {activeTab === 'rewards' && <RewardsTab />}
+      {activeTab === 'my-quests' && <MyQuestsTab />}
+      {activeTab === 'friends' && <FriendsTab />}
+      {activeTab === 'assigned-quests' && <AssignedQuestsTab />}
+    </div>
+
+    {/* Achievements Modal */}
+    {showAchievements && (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-600 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+          <div className="flex items-center justify-between p-6 border-b border-gray-700">
+            <div className="flex items-center space-x-3">
+              <Award className="w-6 h-6 text-yellow-400" />
+              <h2 className="text-2xl font-bold text-yellow-400">Достижения</h2>
+            </div>
+            <button
+              onClick={() => setShowAchievements(false)}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="p-6 overflow-y-auto max-h-[60vh]" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 #1F2937' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">
+              {achievements.map(achievement => (
+                <div
+                  key={achievement.id}
+                  className={`bg-gradient-to-r ${
+                    achievement.unlocked
+                      ? 'from-yellow-900/20 to-orange-900/20 border-yellow-400/30'
+                      : 'from-gray-700/30 to-gray-800/30 border-gray-600'
+                  } border rounded-lg p-4`}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className={`${achievement.unlocked ? '' : 'opacity-50 grayscale'}`}>
+                      {achievement.icon === 'Target' && <Target className="w-10 h-10 text-green-400" />}
+                      {achievement.icon === 'Team' && <Users className="w-10 h-10 text-blue-400" />}
+                      {achievement.icon === 'Mentor' && <Award className="w-10 h-10 text-purple-400" />}
+                      {achievement.icon === 'Crown' && <Trophy className="w-10 h-10 text-yellow-400" />}
+                      {achievement.icon === 'Speed' && <Zap className="w-10 h-10 text-orange-400" />}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className={`font-bold ${achievement.unlocked ? 'text-yellow-400' : 'text-gray-400'}`}>
+                        {achievement.title}
+                      </h3>
+                      <p className="text-sm text-gray-400 mt-1">{achievement.description}</p>
+                      {!achievement.unlocked && achievement.progress !== undefined && (
+                        <div className="mt-2">
+                          <div className="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>Прогресс</span>
+                            <span>{achievement.progress}/{achievement.total}</span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-blue-400 to-purple-500"
+                              style={{ width: `${(achievement.progress / achievement.total) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
 
       {/* Desktop Navigation Tabs */}
       <div className="hidden sm:block bg-gray-800/30 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
