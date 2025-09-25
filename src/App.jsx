@@ -614,20 +614,92 @@ const QuestTaskManager = () => {
     }
   };
 
-  const saveProfile = () => {
-    if (profileForm.newPassword && profileForm.newPassword !== profileForm.confirmPassword) {
-      alert('Пароли не совпадают!');
-      return;
+  useEffect(() => {
+    // Синхронизировать форму профиля с актуальными данными пользователя
+    if (user) {
+      setProfileForm(prev => ({
+        ...prev,
+        name: currentUser.name || user.user_metadata?.name || user.email?.split('@')[0] || '',
+        email: currentUser.email || user.email || ''
+      }));
     }
-    
-    setCurrentUser({
-      ...currentUser,
-      name: profileForm.name,
-      email: profileForm.email
-    });
-    
-    setEditingProfile(false);
-    setProfileForm({ ...profileForm, oldPassword: '', newPassword: '', confirmPassword: '' });
+  }, [user, currentUser]);
+
+  const saveProfile = async () => {
+    try {
+      if (!user) {
+        alert('Пользователь не авторизован');
+        return;
+      }
+
+      if (profileForm.newPassword && profileForm.newPassword !== profileForm.confirmPassword) {
+        alert('Пароли не совпадают!');
+        return;
+      }
+
+      // Обновить Supabase Auth: имя (metadata), email и пароль при необходимости
+      const updates = {};
+      const metaUpdates = {};
+
+      if (profileForm.name && profileForm.name !== (user.user_metadata?.name || currentUser.name)) {
+        metaUpdates.name = profileForm.name;
+      }
+      if (Object.keys(metaUpdates).length > 0) {
+        const { error: metaErr } = await supabase.auth.updateUser({ data: metaUpdates });
+        if (metaErr) {
+          console.error('❌ Error updating user metadata:', metaErr);
+          alert('Ошибка обновления имени: ' + metaErr.message);
+          return;
+        }
+      }
+
+      if (profileForm.email && profileForm.email !== user.email) {
+        updates.email = profileForm.email;
+      }
+      if (profileForm.newPassword) {
+        updates.password = profileForm.newPassword;
+      }
+      if (Object.keys(updates).length > 0) {
+        const { error: authErr } = await supabase.auth.updateUser(updates);
+        if (authErr) {
+          console.error('❌ Error updating auth user:', authErr);
+          alert('Ошибка обновления учетной записи: ' + authErr.message);
+          return;
+        }
+      }
+
+      // Обновить профиль в базе
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name: profileForm.name || currentUser.name,
+          email: profileForm.email || user.email,
+          level: currentUser.level || 1,
+          avatar: currentUser.avatar || 'Hero'
+        });
+
+      if (profileErr) {
+        console.error('❌ Error updating profile row:', profileErr);
+        alert('Ошибка обновления профиля: ' + profileErr.message);
+        return;
+      }
+
+      // Обновить локальное состояние
+      setCurrentUser(prev => ({
+        ...prev,
+        name: profileForm.name || prev.name,
+        email: profileForm.email || prev.email
+      }));
+
+      setEditingProfile(false);
+      setProfileForm(prev => ({ ...prev, oldPassword: '', newPassword: '', confirmPassword: '' }));
+
+      alert('Профиль обновлен');
+    } catch (error) {
+      console.error('❌ Error in saveProfile:', error);
+      alert('Ошибка: ' + error.message);
+    }
   };
 
   const toggleSubtask = async (questId, subtaskId) => {
