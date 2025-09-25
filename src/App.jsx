@@ -1022,15 +1022,54 @@ const QuestTaskManager = () => {
   const RewardsTab = () => {
     const [localRewardSearch, setLocalRewardSearch] = useState('');
     const [localRewardFilter, setLocalRewardFilter] = useState('all');
+    // Sub-tabs: pending/claimed with ability to hide claimed
+    const [activeRewardsSubtab, setActiveRewardsSubtab] = useState('pending');
+    const [hideClaimedRewards, setHideClaimedRewards] = useState(false);
     
-    const filteredRewards = localRewardFilter === 'all' 
+    let filteredRewards = localRewardFilter === 'all' 
       ? [...rewards.pending, ...rewards.claimed]
       : localRewardFilter === 'pending' 
         ? rewards.pending 
         : rewards.claimed;
 
+    // Apply sub-tab selection first
+    filteredRewards = activeRewardsSubtab === 'pending' ? rewards.pending : rewards.claimed;
+    // Respect hide toggle: when hiding claimed, force pending
+    if (hideClaimedRewards) {
+      filteredRewards = rewards.pending;
+    }
+
     return (
       <div>
+        <div className="mb-3 flex items-center space-x-2">
+          <button
+            onClick={() => setActiveRewardsSubtab('pending')}
+            className={`px-3 py-1 rounded-lg text-sm border ${activeRewardsSubtab === 'pending' ? 'bg-yellow-600/20 border-yellow-500 text-yellow-300' : 'bg-gray-800/40 border-gray-600 text-gray-300 hover:bg-gray-700/40'}`}
+          >
+            К получению ({rewards.pending.length})
+          </button>
+          {!hideClaimedRewards && (
+            <button
+              onClick={() => setActiveRewardsSubtab('claimed')}
+              className={`px-3 py-1 rounded-lg text-sm border ${activeRewardsSubtab === 'claimed' ? 'bg-green-600/20 border-green-500 text-green-300' : 'bg-gray-800/40 border-gray-600 text-gray-300 hover:bg-gray-700/40'}`}
+            >
+              Получены ({rewards.claimed.length})
+            </button>
+          )}
+          <label className="ml-auto flex items-center space-x-2 text-xs text-gray-400">
+            <input
+              type="checkbox"
+              checked={hideClaimedRewards}
+              onChange={(e) => {
+                const hide = e.target.checked;
+                setHideClaimedRewards(hide);
+                if (hide) setActiveRewardsSubtab('pending');
+              }}
+            />
+            <span>Скрыть вкладку «Получены»</span>
+          </label>
+        </div>
+
         <div className="mb-6 bg-gray-800/30 rounded-xl p-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex items-center space-x-2">
@@ -1150,6 +1189,9 @@ const MyQuestsTab = () => {
   const [localSortBy, setLocalSortBy] = useState('dueDate');
   const [localSortOrder, setLocalSortOrder] = useState('asc');
   const [localShowNewQuest, setLocalShowNewQuest] = useState(false);
+  // Sub-tabs for my quests
+  const [activeMyQuestsSubtab, setActiveMyQuestsSubtab] = useState('active');
+  const [hideCompletedMyQuests, setHideCompletedMyQuests] = useState(false);
   const [questType, setQuestType] = useState('rare');
   const [localNewQuest, setLocalNewQuest] = useState({
     title: '',
@@ -1220,7 +1262,11 @@ const MyQuestsTab = () => {
     return sorted;
   };
   
-  const filteredAndSortedQuests = sortQuests(filterQuests(allMyQuests));
+  // Apply sub-tab filtering before other filters
+  const subtabFiltered = (activeMyQuestsSubtab === 'active' || hideCompletedMyQuests)
+    ? allMyQuests.filter(q => !q.completed)
+    : allMyQuests.filter(q => q.completed);
+  const filteredAndSortedQuests = sortQuests(filterQuests(subtabFiltered));
   
   const addSubtask = () => {
     if (newSubtaskTitle.trim()) {
@@ -1330,6 +1376,34 @@ const MyQuestsTab = () => {
 
   return (
     <div>
+      <div className="mb-3 flex items-center space-x-2">
+        <button
+          onClick={() => setActiveMyQuestsSubtab('active')}
+          className={`px-3 py-1 rounded-lg text-sm border ${activeMyQuestsSubtab === 'active' ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-gray-800/40 border-gray-600 text-gray-300 hover:bg-gray-700/40'}`}
+        >
+          Выполняю
+        </button>
+        {!hideCompletedMyQuests && (
+          <button
+            onClick={() => setActiveMyQuestsSubtab('completed')}
+            className={`px-3 py-1 rounded-lg text-sm border ${activeMyQuestsSubtab === 'completed' ? 'bg-green-600/20 border-green-500 text-green-300' : 'bg-gray-800/40 border-gray-600 text-gray-300 hover:bg-gray-700/40'}`}
+          >
+            Выполнено
+          </button>
+        )}
+        <label className="ml-auto flex items-center space-x-2 text-xs text-gray-400">
+          <input
+            type="checkbox"
+            checked={hideCompletedMyQuests}
+            onChange={(e) => {
+              const hide = e.target.checked;
+              setHideCompletedMyQuests(hide);
+              if (hide) setActiveMyQuestsSubtab('active');
+            }}
+          />
+          <span>Скрыть вкладку «Выполнено»</span>
+        </label>
+      </div>
       <div className="mb-6">
         <button
           onClick={() => setLocalShowNewQuest(!localShowNewQuest)}
@@ -1794,6 +1868,8 @@ const MyQuestsTab = () => {
   const AssignedQuestsTab = () => {
   const [showNewAssignedQuest, setShowNewAssignedQuest] = useState(false);
   const [assignedQuestType, setAssignedQuestType] = useState('rare');
+  const [activeAssignedSubtab, setActiveAssignedSubtab] = useState('active');
+  const [hideCompletedAssigned, setHideCompletedAssigned] = useState(false);
   const [newAssignedQuest, setNewAssignedQuest] = useState({
     title: '',
     description: '',
@@ -1932,6 +2008,34 @@ const MyQuestsTab = () => {
 
   return (
     <div className="space-y-6">
+      <div className="mb-3 flex items-center space-x-2">
+        <button
+          onClick={() => setActiveAssignedSubtab('active')}
+          className={`px-3 py-1 rounded-lg text-sm border ${activeAssignedSubtab === 'active' ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-gray-800/40 border-gray-600 text-gray-300 hover:bg-gray-700/40'}`}
+        >
+          На выполнении
+        </button>
+        {!hideCompletedAssigned && (
+          <button
+            onClick={() => setActiveAssignedSubtab('completed')}
+            className={`px-3 py-1 rounded-lg text-sm border ${activeAssignedSubtab === 'completed' ? 'bg-green-600/20 border-green-500 text-green-300' : 'bg-gray-800/40 border-gray-600 text-gray-300 hover:bg-gray-700/40'}`}
+          >
+            Выполнено
+          </button>
+        )}
+        <label className="ml-auto flex items-center space-x-2 text-xs text-gray-400">
+          <input
+            type="checkbox"
+            checked={hideCompletedAssigned}
+            onChange={(e) => {
+              const hide = e.target.checked;
+              setHideCompletedAssigned(hide);
+              if (hide) setActiveAssignedSubtab('active');
+            }}
+          />
+          <span>Скрыть вкладку «Выполнено»</span>
+        </label>
+      </div>
       <div>
         <button
           onClick={() => setShowNewAssignedQuest(!showNewAssignedQuest)}
@@ -2149,7 +2253,7 @@ const MyQuestsTab = () => {
         </div>
       )}
 
-      {activeQuests.length > 0 && (
+      {(activeAssignedSubtab === 'active' || hideCompletedAssigned) && activeQuests.length > 0 && (
         <div>
           <h3 className="text-xl font-bold mb-4 text-yellow-400">Активные задания</h3>
           <div className="space-y-4">
@@ -2160,7 +2264,7 @@ const MyQuestsTab = () => {
         </div>
       )}
 
-      {completedQuests.length > 0 && (
+      {activeAssignedSubtab === 'completed' && !hideCompletedAssigned && completedQuests.length > 0 && (
         <div>
           <h3 className="text-xl font-bold mb-4 text-green-400">Выполненные задания</h3>
           <div className="space-y-4">
