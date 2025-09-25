@@ -1218,8 +1218,7 @@ const MyQuestsTab = () => {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   
   const myQuests = getMyQuests();
-  const questsFromFriends = getQuestsFromFriends();
-  const allMyQuests = [...myQuests, ...questsFromFriends];
+  const allMyQuests = myQuests;
   
   const filterQuests = (quests) => {
     let filtered = quests;
