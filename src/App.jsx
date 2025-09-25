@@ -665,40 +665,43 @@ const QuestTaskManager = () => {
         console.error('❌ Error updating quest progress:', questUpdateError);
       }
 
-      if (newCompletedStatus && !subtask.completed) {
-        console.log('🎁 Creating subtask reward for:', subtask.title);
-        const { data: createdReward, error: subtaskRewardError } = await supabase
-          .from('rewards')
-          .insert({
-            user_id: user.id,
-            quest_id: quest.id,
-            quest_title: quest.title,
-            title: `${subtask.title} - Выполнено`,
-            bonus: null,
-            xp: subtask.xp,
-            type: 'subtask',
-            claimed: false,
-            earned_at: new Date().toISOString()
-          })
-          .select()
-          .single();
+      // Для Legendary: не создавать награды за подзадачи
+      if (quest.difficulty !== 'legendary') {
+        if (newCompletedStatus && !subtask.completed) {
+          console.log('🎁 Creating subtask reward for:', subtask.title);
+          const { data: createdReward, error: subtaskRewardError } = await supabase
+            .from('rewards')
+            .insert({
+              user_id: user.id,
+              quest_id: quest.id,
+              quest_title: quest.title,
+              title: `${subtask.title} - Выполнено`,
+              bonus: null,
+              xp: subtask.xp,
+              type: 'subtask',
+              claimed: false,
+              earned_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-        if (subtaskRewardError) {
-          console.error('❌ Error creating subtask reward:', subtaskRewardError);
-        } else {
-          console.log('✅ Subtask reward created:', createdReward);
-        }
-      } else if (!newCompletedStatus && subtask.completed) {
-        const { error: deleteSubtaskRewardError } = await supabase
-          .from('rewards')
-          .delete()
-          .eq('quest_id', questId)
-          .eq('title', `${subtask.title} - Выполнено`)
-          .eq('type', 'subtask')
-          .eq('claimed', false);
+          if (subtaskRewardError) {
+            console.error('❌ Error creating subtask reward:', subtaskRewardError);
+          } else {
+            console.log('✅ Subtask reward created:', createdReward);
+          }
+        } else if (!newCompletedStatus && subtask.completed) {
+          const { error: deleteSubtaskRewardError } = await supabase
+            .from('rewards')
+            .delete()
+            .eq('quest_id', questId)
+            .eq('title', `${subtask.title} - Выполнено`)
+            .eq('type', 'subtask')
+            .eq('claimed', false);
 
-        if (deleteSubtaskRewardError) {
-          console.error('❌ Error deleting subtask reward:', deleteSubtaskRewardError);
+          if (deleteSubtaskRewardError) {
+            console.error('❌ Error deleting subtask reward:', deleteSubtaskRewardError);
+          }
         }
       }
 
