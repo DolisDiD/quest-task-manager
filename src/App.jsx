@@ -91,9 +91,12 @@ const QuestTaskManager = () => {
   };
 
   const getFriendById = (id) => friends.find(f => f.id === id);
-  const getMyQuests = () => quests.filter(q => !q.assignedBy && !q.assignedTo);
-  const getQuestsFromFriends = () => quests.filter(q => q.assignedBy !== null);
-  const getQuestsToFriends = () => quests.filter(q => q.assignedTo !== null);
+  const getMyQuests = () => quests.filter(q =>
+    (q.assignedTo === user?.id) ||
+    (!q.assignedBy && !q.assignedTo && q.createdBy === user?.id)
+  );
+  const getQuestsFromFriends = () => quests.filter(q => q.assignedBy && q.assignedTo === user?.id);
+  const getQuestsToFriends = () => quests.filter(q => q.assignedBy === user?.id && q.assignedTo);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -353,9 +356,12 @@ const QuestTaskManager = () => {
           progress: quest.progress || 0,
           totalSteps: quest.total_steps || 1,
           createdAt: new Date(quest.created_at),
+          createdBy: quest.created_by,
           dueDate: quest.due_date ? new Date(quest.due_date) : null,
           assignedBy: quest.assigned_by,
           assignedTo: quest.assigned_to,
+          assignedByName: quest.assigned_by_profile?.name || null,
+          assignedToName: quest.assigned_to_profile?.name || null,
           expanded: false,
           subtasks: quest.quest_subtasks ? quest.quest_subtasks
             .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
@@ -919,12 +925,12 @@ const QuestTaskManager = () => {
               {quest.completed && <CheckCircle className="w-5 h-5 text-green-400" />}
               {quest.assignedBy && (
                 <span className="text-xs text-blue-400">
-                  От: {getFriendById(quest.assignedBy)?.name || 'Неизвестно'}
+                  От: {quest.assignedByName || getFriendById(quest.assignedBy)?.name || 'Неизвестно'}
                 </span>
               )}
               {quest.assignedTo && (
                 <span className="text-xs text-purple-400">
-                  Для: {getFriendById(quest.assignedTo)?.name || 'Неизвестно'}
+                  Для: {quest.assignedToName || getFriendById(quest.assignedTo)?.name || 'Неизвестно'}
                 </span>
               )}
             </div>
@@ -1463,7 +1469,7 @@ const MyQuestsTab = () => {
             className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2 text-sm"
           >
             <span>{localSortOrder === 'asc' ? '↑' : '↓'}</span>
-            <span>{localSortOrder === 'asc' ? 'По возrastанию' : 'По убыванию'}</span>
+              <span>{localSortOrder === 'asc' ? 'По возрастанию' : 'По убыванию'}</span>
           </button>
           
           <div className="text-sm text-gray-400">
