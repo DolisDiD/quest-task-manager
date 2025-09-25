@@ -2479,6 +2479,7 @@ if (loading) {
 if (!user) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <NotificationSystem notifications={notifications} onClose={closeNotification} />
       <div className="flex items-center justify-center min-h-screen p-4">
         <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl max-w-md w-full p-8">
           <div className="text-center mb-8">
@@ -2502,6 +2503,7 @@ if (!user) {
               </div>
             )}
 
+            {authMode !== 'set-new-password' && (
             <div>
               <label className="block text-sm font-medium mb-2">Email</label>
               <input
@@ -2513,18 +2515,48 @@ if (!user) {
                 placeholder="your@email.com"
               />
             </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Пароль</label>
-              <input
-                type="password"
-                required
-                value={authForm.password}
-                onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                placeholder="••••••••"
-              />
-            </div>
+            {authMode === 'login' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Пароль</label>
+                <input
+                  type="password"
+                  required
+                  value={authForm.password}
+                  onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                  placeholder="••••••••"
+                />
+              </div>
+            )}
+
+            {authMode === 'set-new-password' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Новый пароль</label>
+                  <input
+                    type="password"
+                    required
+                    value={authForm.password}
+                    onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Подтвердите пароль</label>
+                  <input
+                    type="password"
+                    required
+                    value={authForm.confirmPassword}
+                    onChange={(e) => setAuthForm({ ...authForm, confirmPassword: e.target.value })}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </>
+            )}
 
             {authMode === 'register' && (
               <div>
@@ -2544,8 +2576,11 @@ if (!user) {
               type="submit"
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
             >
-              {authMode === 'login' ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-              <span>{authMode === 'login' ? 'Войти' : 'Зарегистрироваться'}</span>
+              {authMode === 'login' && <LogIn className="w-4 h-4" />}
+              {authMode === 'register' && <UserPlus className="w-4 h-4" />}
+              <span>
+                {authMode === 'login' ? 'Войти' : authMode === 'register' ? 'Зарегистрироваться' : 'Обновить пароль'}
+              </span>
             </button>
           </form>
 
@@ -2559,6 +2594,21 @@ if (!user) {
                 : 'Уже есть аккаунт? Войти'
               }
             </button>
+            {authMode === 'login' && (
+              <div className="mt-3">
+                <button
+                  onClick={async () => {
+                    if (!authForm.email) { alert('Введите email сверху и нажмите'); return; }
+                    const { error } = await supabase.auth.resetPasswordForEmail(authForm.email, { redirectTo: window.location.origin });
+                    if (error) { alert('Ошибка отправки письма: ' + error.message); }
+                    else { addNotification('Письмо для восстановления отправлено', 'success'); }
+                  }}
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  Забыли пароль?
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
