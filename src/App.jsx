@@ -13,9 +13,29 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1N
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Simple notification system component
-const NotificationSystem = () => {
-  return null; // We'll implement this later if needed
+// Simple notification system
+const NotificationSystem = ({ notifications, onClose }) => {
+  return (
+    <div className="fixed top-4 right-4 z-50 space-y-2">
+      {notifications.map(n => (
+        <div
+          key={n.id}
+          className={`px-4 py-2 rounded shadow-lg border ${
+            n.type === 'success' ? 'bg-green-700/90 border-green-400 text-white' :
+            n.type === 'error' ? 'bg-red-700/90 border-red-400 text-white' :
+            'bg-gray-700/90 border-gray-500 text-white'
+          }`}
+        >
+          <div className="flex items-start space-x-2">
+            <div className="flex-1 text-sm">{n.message}</div>
+            <button className="text-white/80 hover:text-white" onClick={() => onClose(n.id)}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 const QuestTaskManager = () => {
@@ -23,6 +43,15 @@ const QuestTaskManager = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const addNotification = (message, type = 'info', timeoutMs = 3000) => {
+    const id = Date.now() + Math.random();
+    setNotifications(prev => [...prev, { id, message, type }]);
+    if (timeoutMs > 0) {
+      setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), timeoutMs);
+    }
+  };
+  const closeNotification = (id) => setNotifications(prev => prev.filter(n => n.id !== id));
   
   // Auth states
   const [authMode, setAuthMode] = useState('login');
@@ -111,7 +140,7 @@ const QuestTaskManager = () => {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         setCurrentUser(prev => ({
@@ -119,6 +148,10 @@ const QuestTaskManager = () => {
           email: session.user.email,
           name: session.user.user_metadata?.name || session.user.email.split('@')[0]
         }));
+      }
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthMode('set-new-password');
+        addNotification('Введите новый пароль', 'info');
       }
     });
 
@@ -462,7 +495,7 @@ const QuestTaskManager = () => {
           alert('Регистрация успешна! Проверьте email для подтверждения.');
           setAuthMode('login');
         }
-      } else {
+      } else if (authMode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: authForm.email,
           password: authForm.password
@@ -470,10 +503,50 @@ const QuestTaskManager = () => {
         
         if (error) {
           alert('Ошибка входа: ' + error.message);
+        } else {
+          addNotification('Вход выполнен', 'success');
         }
+      } else if (authMode === 'set-new-password') {
+        if (!authForm.password || authForm.password !== authForm.confirmPassword) {
+          alert('Пароли не совпадают!');
+          return;
+        }
+        const { error } = await supabase.auth.updateUser({ password: authForm.password });
+        if (error) {
+          alert('Ошибка смены пароля: ' + error.message);
+          return;
+        }
+        addNotification('Пароль обновлен, выполните вход', 'success');
+        await supabase.auth.signOut();
+        setAuthMode('login');
       }
     } catch (error) {
       alert('Ошибка: ' + error.message);
+    }
+  };
+
+  // Reset password modal state
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const sendResetEmail = async () => {
+    try {
+      const emailToUse = resetEmail || authForm.email;
+      if (!emailToUse) {
+        alert('Введите email');
+        return;
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(emailToUse, {
+        redirectTo: window.location.origin
+      });
+      if (error) {
+        alert('Ошибка отправки письма: ' + error.message);
+        return;
+      }
+      addNotification('Письмо для восстановления отправлено', 'success');
+      setShowResetModal(false);
+      setResetEmail('');
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
     }
   };
 
@@ -692,6 +765,8 @@ const QuestTaskManager = () => {
         email: profileForm.email || prev.email
       }));
 
+      const emailOrPasswordChanged = (updates.email && updates.email !== user.email) || !!updates.password;
+
       // Обновить локальные данные из актуальной сессии
       const { data: sessionData } = await supabase.auth.getSession();
       const newUser = sessionData?.session?.user;
@@ -711,7 +786,12 @@ const QuestTaskManager = () => {
       setEditingProfile(false);
       setProfileForm(prev => ({ ...prev, oldPassword: '', newPassword: '', confirmPassword: '' }));
 
-      alert('Профиль обновлен');
+      addNotification('Данные изменены', 'success');
+
+      if (emailOrPasswordChanged) {
+        await supabase.auth.signOut();
+        addNotification('Выполнен выход. Войдите с новыми данными', 'info');
+      }
     } catch (error) {
       console.error('❌ Error in saveProfile:', error);
       alert('Ошибка: ' + error.message);
@@ -2497,7 +2577,7 @@ const tabs = [
 return (
   <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
     {/* НОВОЕ: Система уведомлений */}
-    <NotificationSystem />
+    <NotificationSystem notifications={notifications} onClose={closeNotification} />
 
     {/* Header */}
     <div className="bg-black/50 backdrop-blur-sm border-b border-gray-700">
