@@ -692,6 +692,22 @@ const QuestTaskManager = () => {
         email: profileForm.email || prev.email
       }));
 
+      // Обновить локальные данные из актуальной сессии
+      const { data: sessionData } = await supabase.auth.getSession();
+      const newUser = sessionData?.session?.user;
+      if (newUser) {
+        setCurrentUser(prev => ({
+          ...prev,
+          email: newUser.email || prev.email,
+          name: newUser.user_metadata?.name || prev.name
+        }));
+        setProfileForm(prev => ({
+          ...prev,
+          name: newUser.user_metadata?.name || prev.name,
+          email: newUser.email || prev.email
+        }));
+      }
+
       setEditingProfile(false);
       setProfileForm(prev => ({ ...prev, oldPassword: '', newPassword: '', confirmPassword: '' }));
 
@@ -2687,7 +2703,20 @@ return (
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">Личный кабинет</h2>
               <button
-                onClick={() => setEditingProfile(!editingProfile)}
+                onClick={() => {
+                  const next = !editingProfile;
+                  setEditingProfile(next);
+                  if (next) {
+                    setProfileForm(prev => ({
+                      ...prev,
+                      name: currentUser.name || user?.user_metadata?.name || (user?.email ? user.email.split('@')[0] : ''),
+                      email: currentUser.email || user?.email || '',
+                      oldPassword: '',
+                      newPassword: '',
+                      confirmPassword: ''
+                    }));
+                  }
+                }}
                 className="text-blue-400 hover:text-blue-300 transition-colors"
               >
                 {editingProfile ? <X className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
