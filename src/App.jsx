@@ -1139,6 +1139,9 @@ const QuestTaskManager = () => {
         if (rewardError) {
           console.error('❌ Error creating reward:', rewardError);
         }
+
+        // Grant collection cards from pack for single-step quests
+        await grantCardsFromPack(quest, quest.difficulty);
       }
       else if (!newCompletedStatus && quest.completed) {
         const { error: deleteRewardError } = await supabase
