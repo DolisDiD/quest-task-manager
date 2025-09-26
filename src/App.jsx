@@ -12,6 +12,8 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hqhaqtwxqawslw
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxaGFxdHd4cWF3c2x3cGpyb2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyNDc5MjcsImV4cCI6MjA2NTgyMzkyN30.bNQxmic8Tju-bbCNRoAgbYZCMhPQRY_tPa4K-GHcZM4';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+// Default built-in card pack for personal quests
+const defaultPackId = 'a0384274-e165-4536-9296-c6ddc6633bce';
 
 // Simple notification system
 const NotificationSystem = ({ notifications, onClose }) => {
@@ -91,6 +93,9 @@ const QuestTaskManager = () => {
   const [rewards, setRewards] = useState({pending: [], claimed: []});
   const [achievements, setAchievements] = useState([]);
   const [showAchievements, setShowAchievements] = useState(false);
+  // Card packs and cards cache
+  const [cardPacks, setCardPacks] = useState([]);
+  const [cardsById, setCardsById] = useState({});
   
   const difficultyColors = {
     common: 'text-gray-300 border-gray-500',
@@ -163,6 +168,7 @@ const QuestTaskManager = () => {
       loadUserData();
       loadQuests();
       loadRewards();
+      loadPacks();
 
       const friendRequestsSubscription = supabase
         .channel('friend_requests_changes')
@@ -393,6 +399,7 @@ const QuestTaskManager = () => {
           dueDate: quest.due_date ? new Date(quest.due_date) : null,
           assignedBy: quest.assigned_by,
           assignedTo: quest.assigned_to,
+          rewardPackId: quest.reward_pack_id || null,
           assignedByName: quest.assigned_by_profile?.name || null,
           assignedToName: quest.assigned_to_profile?.name || null,
           expanded: false,
@@ -466,6 +473,31 @@ const QuestTaskManager = () => {
       }
     } catch (error) {
       console.error('❌ Error in loadRewards:', error);
+    }
+  };
+
+  const loadPacks = async () => {
+    try {
+      const { data: packs, error } = await supabase
+        .from('card_packs')
+        .select('id, title, description, is_builtin, owner_id')
+        .order('is_builtin', { ascending: false })
+        .order('title', { ascending: true });
+      if (error) {
+        console.error('❌ Error loading packs:', error);
+        return;
+      }
+      setCardPacks(packs || []);
+
+      // Preload cards for quick name resolving (optional)
+      const { data: allCards } = await supabase
+        .from('cards')
+        .select('id, pack_id, title, rarity');
+      const map = {};
+      (allCards || []).forEach(c => { map[c.id] = c; });
+      setCardsById(map);
+    } catch (e) {
+      console.error('❌ Error in loadPacks:', e);
     }
   };
 
@@ -687,6 +719,37 @@ const QuestTaskManager = () => {
     }
   };
 
+  // Grant cards from pack upon quest completion
+  const grantCardsFromPack = async (quest, difficulty) => {
+    try {
+      const packId = quest.rewardPackId || defaultPackId;
+      const { data, error } = await supabase.rpc('draw_card', {
+        p_user_id: user.id,
+        p_pack_id: packId,
+        p_difficulty: difficulty
+      });
+      if (error) {
+        console.error('❌ Error draw_card:', error);
+        addNotification('Ошибка выдачи карточки: ' + error.message, 'error');
+        return;
+      }
+      const drops = Array.isArray(data) ? data : [];
+      drops.forEach(d => {
+        const card = cardsById[d.card_id];
+        const title = card?.title || 'Card';
+        addNotification(`Выпала карточка: ${title} (${d.rarity})`, 'success');
+        if (d.upgraded && d.upgraded !== null) {
+          const upCard = cardsById[d.upgraded.card_id];
+          const upTitle = upCard?.title || title;
+          addNotification(`Слияние: 3× ${upTitle} → ${d.upgraded.to}`, 'info');
+        }
+      });
+    } catch (e) {
+      console.error('❌ Error in grantCardsFromPack:', e);
+      addNotification('Ошибка выдачи карточки', 'error');
+    }
+  };
+
   useEffect(() => {
     // Синхронизировать форму профиля с актуальными данными пользователя
     if (user) {
@@ -902,6 +965,9 @@ const QuestTaskManager = () => {
         } else {
           console.log('✅ Main quest reward created:', createdMainReward);
         }
+
+        // Grant collection cards from pack according to difficulty
+        await grantCardsFromPack(quest, quest.difficulty);
       } else if (!isQuestComplete && quest.completed) {
         const { error: deleteMainRewardError } = await supabase
           .from('rewards')
@@ -1484,7 +1550,8 @@ const MyQuestsTab = () => {
         bonus: localNewQuest.bonus,
         due_date: localNewQuest.dueDate ? new Date(localNewQuest.dueDate).toISOString() : null,
         created_by: user.id,
-        total_steps: localNewQuest.subtasks.length || 1
+        total_steps: localNewQuest.subtasks.length || 1,
+        reward_pack_id: defaultPackId
       };
 
       const { data: createdQuest, error: questError } = await supabase
@@ -2058,6 +2125,7 @@ const MyQuestsTab = () => {
     assignedTo: null,
     subtasks: []
   });
+  const [assignedRewardPackId, setAssignedRewardPackId] = useState(defaultPackId);
   const [showAssignedSubtaskForm, setShowAssignedSubtaskForm] = useState(false);
   const [newAssignedSubtaskTitle, setNewAssignedSubtaskTitle] = useState('');
   
@@ -2113,7 +2181,8 @@ const MyQuestsTab = () => {
         assigned_by: user.id,
         assigned_to: newAssignedQuest.assignedTo,
         created_by: user.id,
-        total_steps: newAssignedQuest.subtasks.length || 1
+        total_steps: newAssignedQuest.subtasks.length || 1,
+        reward_pack_id: assignedRewardPackId || defaultPackId
       };
 
       const { data: createdQuest, error: questError } = await supabase
@@ -2171,6 +2240,7 @@ const MyQuestsTab = () => {
       setShowNewAssignedQuest(false);
       setAssignedQuestType('rare');
       setShowAssignedSubtaskForm(false);
+      setAssignedRewardPackId(defaultPackId);
 
       await loadQuests();
       
@@ -2238,6 +2308,17 @@ const MyQuestsTab = () => {
                 <option key={friend.id} value={friend.id}>
                   {friend.name} (Уровень {friend.level})
                 </option>
+              ))}
+            </select>
+
+            <label className="block text-sm font-medium mb-3">Пачка карточек для награды</label>
+            <select
+              value={assignedRewardPackId}
+              onChange={(e) => setAssignedRewardPackId(e.target.value)}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+            >
+              {cardPacks.map(p => (
+                <option key={p.id} value={p.id}>{p.title}{p.is_builtin ? ' (встроенная)' : ''}</option>
               ))}
             </select>
           </div>
