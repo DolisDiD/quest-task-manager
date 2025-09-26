@@ -96,6 +96,9 @@ const QuestTaskManager = () => {
   // Card packs and cards cache
   const [cardPacks, setCardPacks] = useState([]);
   const [cardsById, setCardsById] = useState({});
+  // Collection
+  const [selectedPackId, setSelectedPackId] = useState(null);
+  const [userCards, setUserCards] = useState([]);
   
   const difficultyColors = {
     common: 'text-gray-300 border-gray-500',
@@ -488,6 +491,8 @@ const QuestTaskManager = () => {
         return;
       }
       setCardPacks(packs || []);
+      const def = (packs || []).find(p => p.is_builtin) || (packs || [])[0] || null;
+      setSelectedPackId(def ? def.id : null);
 
       // Preload cards for quick name resolving (optional)
       const { data: allCards } = await supabase
@@ -500,6 +505,39 @@ const QuestTaskManager = () => {
       console.error('❌ Error in loadPacks:', e);
     }
   };
+
+  const loadCollection = async (packId) => {
+    try {
+      if (!user || !packId) return;
+      const { data, error } = await supabase
+        .from('user_cards')
+        .select('card_id, qty_base, qty_rare, qty_epic, qty_legendary, cards!inner(id, pack_id, title, rarity)')
+        .eq('user_id', user.id)
+        .eq('cards.pack_id', packId);
+      if (error) {
+        console.error('❌ Error loading collection:', error);
+        return;
+      }
+      const items = (data || []).map(row => ({
+        cardId: row.card_id,
+        title: row.cards.title,
+        rarity: row.cards.rarity,
+        qty: {
+          base: row.qty_base,
+          rare: row.qty_rare,
+          epic: row.qty_epic,
+          legendary: row.qty_legendary
+        }
+      }));
+      setUserCards(items);
+    } catch (e) {
+      console.error('❌ Error in loadCollection:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedPackId) loadCollection(selectedPackId);
+  }, [selectedPackId, user]);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -748,6 +786,60 @@ const QuestTaskManager = () => {
       console.error('❌ Error in grantCardsFromPack:', e);
       addNotification('Ошибка выдачи карточки', 'error');
     }
+  };
+
+  const CollectionTab = () => {
+    const packs = cardPacks;
+    const curPackId = selectedPackId;
+    const grouped = userCards.reduce((acc, item) => {
+      acc[item.rarity] = acc[item.rarity] || [];
+      acc[item.rarity].push(item);
+      return acc;
+    }, {});
+
+    return (
+      <div>
+        <div className="mb-6 bg-gray-800/30 rounded-xl p-4">
+          <label className="block text-sm font-medium mb-2">Пачка карточек</label>
+          <select
+            value={curPackId || ''}
+            onChange={(e) => setSelectedPackId(e.target.value)}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+          >
+            {packs.map(p => (
+              <option key={p.id} value={p.id}>{p.title}{p.is_builtin ? ' (встроенная)' : ''}</option>
+            ))}
+          </select>
+        </div>
+
+        {['legendary','epic','rare','base'].map(r => (
+          <div key={r} className="mb-6">
+            <h3 className="text-lg font-bold mb-3 capitalize">{r === 'base' ? 'Базовые' : r === 'rare' ? 'Редкие' : r === 'epic' ? 'Эпические' : 'Легендарные'}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(grouped[r] || []).length === 0 && (
+                <div className="text-gray-500">Нет карточек этого уровня</div>
+              )}
+              {(grouped[r] || []).map(card => (
+                <div key={card.cardId} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold">{card.title}</div>
+                      <div className="text-xs text-gray-400">{r}</div>
+                    </div>
+                    <div className="text-right text-sm">
+                      <div>Base: {card.qty.base}</div>
+                      <div>Rare: {card.qty.rare}</div>
+                      <div>Epic: {card.qty.epic}</div>
+                      <div>Legendary: {card.qty.legendary}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -2701,6 +2793,7 @@ const tabs = [
   { id: 'dashboard', label: 'Главная', icon: Home },
   { id: 'my-quests', label: 'Мои задания', icon: ListChecks },
   { id: 'rewards', label: 'Награды', icon: Trophy },
+  { id: 'collection', label: 'Коллекция', icon: Award },
   { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
   { id: 'friends', label: 'Друзья', icon: Users }
 ];
@@ -3044,6 +3137,7 @@ return (
       )}
       
       {activeTab === 'rewards' && <RewardsTab />}
+      {activeTab === 'collection' && <CollectionTab />}
       {activeTab === 'my-quests' && <MyQuestsTab />}
       {activeTab === 'friends' && <FriendsTab />}
       {activeTab === 'assigned-quests' && <AssignedQuestsTab />}
