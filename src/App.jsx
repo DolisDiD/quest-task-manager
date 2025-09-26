@@ -511,7 +511,7 @@ const QuestTaskManager = () => {
       if (!user || !packId) return;
       const { data, error } = await supabase
         .from('user_cards')
-        .select('card_id, qty_base, qty_rare, qty_epic, qty_legendary, cards!inner(id, pack_id, title, rarity)')
+        .select('card_id, qty_base, qty_rare, qty_epic, qty_legendary, cards!inner(id, pack_id, title, rarity, image_url)')
         .eq('user_id', user.id)
         .eq('cards.pack_id', packId);
       if (error) {
@@ -520,8 +520,10 @@ const QuestTaskManager = () => {
       }
       const items = (data || []).map(row => ({
         cardId: row.card_id,
+        packId: row.cards.pack_id,
         title: row.cards.title,
         rarity: row.cards.rarity,
+        imageUrl: row.cards.image_url || null,
         qty: {
           base: row.qty_base,
           rare: row.qty_rare,
@@ -815,24 +817,49 @@ const QuestTaskManager = () => {
         {['legendary','epic','rare','base'].map(r => (
           <div key={r} className="mb-6">
             <h3 className="text-lg font-bold mb-3 capitalize">{r === 'base' ? 'Базовые' : r === 'rare' ? 'Редкие' : r === 'epic' ? 'Эпические' : 'Легендарные'}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {(grouped[r] || []).length === 0 && (
-                <div className="text-gray-500">Нет карточек этого уровня</div>
+                <div className="text-gray-500 col-span-full">Нет карточек этого уровня</div>
               )}
               {(grouped[r] || []).map(card => (
-                <div key={card.cardId} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold">{card.title}</div>
-                      <div className="text-xs text-gray-400">{r}</div>
-                    </div>
-                    <div className="text-right text-sm">
-                      <div>Base: {card.qty.base}</div>
-                      <div>Rare: {card.qty.rare}</div>
-                      <div>Epic: {card.qty.epic}</div>
-                      <div>Legendary: {card.qty.legendary}</div>
+                <div key={card.cardId} className="bg-gray-800/30 border border-gray-700 rounded-xl p-2 group cursor-pointer" onClick={() => {
+                  if (!card.imageUrl) {
+                    const input = document.getElementById(`upload-${card.cardId}`);
+                    if (input) input.click();
+                  }
+                }}>
+                  <div className="relative w-full h-56 sm:h-64 rounded-lg overflow-hidden">
+                    {card.imageUrl ? (
+                      <img src={card.imageUrl} alt={card.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-xs text-gray-300">
+                        Нажмите для загрузки фото
+                      </div>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
+                      <div className="text-sm sm:text-base font-semibold truncate">{card.title}</div>
                     </div>
                   </div>
+                  <input id={`upload-${card.cardId}`} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                    try {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const path = `${card.packId}/${card.cardId}.${file.name.split('.').pop() || 'jpg'}`;
+                      const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
+                      if (upErr) { addNotification('Ошибка загрузки: ' + upErr.message, 'error'); return; }
+                      const { data: pub } = supabase.storage.from('cards').getPublicUrl(path);
+                      const publicUrl = pub?.publicUrl;
+                      if (!publicUrl) { addNotification('Не удалось получить public URL', 'error'); return; }
+                      const { error: updErr } = await supabase.from('cards').update({ image_url: publicUrl }).eq('id', card.cardId);
+                      if (updErr) { addNotification('Ошибка сохранения URL: ' + updErr.message, 'error'); return; }
+                      addNotification('Изображение обновлено', 'success');
+                      await loadCollection(selectedPackId);
+                    } catch (er) {
+                      addNotification('Ошибка: ' + (er?.message || er), 'error');
+                    } finally {
+                      e.target.value = '';
+                    }
+                  }} />
                 </div>
               ))}
             </div>
