@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
@@ -983,6 +983,150 @@ const QuestTaskManager = () => {
     );
   };
 
+  // Create Pack Modal Component
+  const CreatePackModal = () => {
+    const [localForm, setLocalForm] = useState({ title: '', description: '' });
+
+    const handleSubmit = async () => {
+      if (!localForm.title.trim()) {
+        addNotification('Введите название пачки', 'error');
+        return;
+      }
+      
+      const pack = await createPack(localForm.title, localForm.description);
+      if (pack) {
+        setLocalForm({ title: '', description: '' });
+        setShowCreatePack(false);
+        setEditingPackId(pack.id);
+      }
+    };
+
+    const handleCancel = () => {
+      setLocalForm({ title: '', description: '' });
+      setShowCreatePack(false);
+    };
+
+    if (!showCreatePack) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
+          <h3 className="text-xl font-bold mb-4">Создать новую пачку</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Название пачки</label>
+              <input
+                type="text"
+                value={localForm.title}
+                onChange={(e) => setLocalForm(prev => ({ ...prev, title: e.target.value }))}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                placeholder="Введите название пачки"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Описание (необязательно)</label>
+              <textarea
+                value={localForm.description}
+                onChange={(e) => setLocalForm(prev => ({ ...prev, description: e.target.value }))}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white h-20 resize-none"
+                placeholder="Описание пачки"
+              />
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleSubmit}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+              >
+                Создать
+              </button>
+              <button
+                onClick={handleCancel}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Create Card Modal Component
+  const CreateCardModal = () => {
+    const [localForm, setLocalForm] = useState({ title: '', rarity: 'base' });
+
+    const handleSubmit = async () => {
+      if (!localForm.title.trim()) {
+        addNotification('Введите название карточки', 'error');
+        return;
+      }
+      
+      if (!editingPackId) {
+        addNotification('Выберите пачку для создания карточки', 'error');
+        return;
+      }
+      
+      const card = await createCard(editingPackId, localForm.title, localForm.rarity);
+      if (card) {
+        setLocalForm({ title: '', rarity: 'base' });
+        setShowCreateCard(false);
+      }
+    };
+
+    const handleCancel = () => {
+      setLocalForm({ title: '', rarity: 'base' });
+      setShowCreateCard(false);
+    };
+
+    if (!showCreateCard) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
+          <h3 className="text-xl font-bold mb-4">Добавить карточку</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Название карточки</label>
+              <input
+                type="text"
+                value={localForm.title}
+                onChange={(e) => setLocalForm(prev => ({ ...prev, title: e.target.value }))}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                placeholder="Введите название карточки"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Редкость</label>
+              <select
+                value={localForm.rarity}
+                onChange={(e) => setLocalForm(prev => ({ ...prev, rarity: e.target.value }))}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+              >
+                <option value="base">Базовая</option>
+                <option value="rare">Редкая</option>
+              </select>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleSubmit}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+              >
+                Добавить
+              </button>
+              <button
+                onClick={handleCancel}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const PackManagerTab = () => {
     const packs = cardPacks;
     const isAdmin = user?.id === 1; // Admin user ID is 1
@@ -1008,46 +1152,6 @@ const QuestTaskManager = () => {
       if (success) {
         await loadPackCards(editingPackId);
       }
-    };
-
-    const handleCreatePack = async () => {
-      if (!newPackForm.title.trim()) {
-        addNotification('Введите название пачки', 'error');
-        return;
-      }
-      
-      const pack = await createPack(newPackForm.title, newPackForm.description);
-      if (pack) {
-        setNewPackForm({ title: '', description: '' });
-        setShowCreatePack(false);
-        setEditingPackId(pack.id);
-      }
-    };
-
-    const handlePackFormChange = (field, value) => {
-      setNewPackForm(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleCreateCard = async () => {
-      if (!newCardForm.title.trim()) {
-        addNotification('Введите название карточки', 'error');
-        return;
-      }
-      
-      if (!editingPackId) {
-        addNotification('Выберите пачку для создания карточки', 'error');
-        return;
-      }
-      
-      const card = await createCard(editingPackId, newCardForm.title, newCardForm.rarity);
-      if (card) {
-        setNewCardForm({ title: '', rarity: 'base' });
-        setShowCreateCard(false);
-      }
-    };
-
-    const handleCardFormChange = (field, value) => {
-      setNewCardForm(prev => ({ ...prev, [field]: value }));
     };
 
     const groupedCards = packCards.reduce((acc, card) => {
@@ -1171,95 +1275,8 @@ const QuestTaskManager = () => {
           </div>
         )}
 
-        {/* Create Pack Modal */}
-        {showCreatePack && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
-              <h3 className="text-xl font-bold mb-4">Создать новую пачку</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Название пачки</label>
-                  <input
-                    type="text"
-                    value={newPackForm.title}
-                    onChange={(e) => handlePackFormChange('title', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                    placeholder="Введите название пачки"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Описание (необязательно)</label>
-                  <textarea
-                    value={newPackForm.description}
-                    onChange={(e) => handlePackFormChange('description', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white h-20 resize-none"
-                    placeholder="Описание пачки"
-                  />
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleCreatePack}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    Создать
-                  </button>
-                  <button
-                    onClick={() => setShowCreatePack(false)}
-                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Create Card Modal */}
-        {showCreateCard && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
-              <h3 className="text-xl font-bold mb-4">Добавить карточку</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Название карточки</label>
-                  <input
-                    type="text"
-                    value={newCardForm.title}
-                    onChange={(e) => handleCardFormChange('title', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                    placeholder="Введите название карточки"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Редкость</label>
-                  <select
-                    value={newCardForm.rarity}
-                    onChange={(e) => handleCardFormChange('rarity', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                  >
-                    <option value="base">Базовая</option>
-                    <option value="rare">Редкая</option>
-                  </select>
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleCreateCard}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    Добавить
-                  </button>
-                  <button
-                    onClick={() => setShowCreateCard(false)}
-                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <CreatePackModal />
+        <CreateCardModal />
       </div>
     );
   };
