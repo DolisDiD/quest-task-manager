@@ -2652,15 +2652,6 @@ const MyQuestsTab = () => {
           <div className="text-gray-500">Создайте квест и назначьте его другу!</div>
         </div>
       )}
-
-      {showCreateModal && (
-        <CreatePackModal
-          user={user}
-          onClose={() => setShowCreateModal(false)}
-          onPacksUpdated={onPacksUpdated}
-          addNotification={addNotification}
-        />
-      )}
     </div>
   );
 };
@@ -3282,6 +3273,15 @@ const MyPacksTab = ({ user, cardPacks, addNotification, onPacksUpdated }) => {
             </div>
           ))}
         </div>
+      )}
+
+      {showCreateModal && (
+        <CreatePackModal
+          user={user}
+          onClose={() => setShowCreateModal(false)}
+          onPacksUpdated={onPacksUpdated}
+          addNotification={addNotification}
+        />
       )}
     </div>
   );
