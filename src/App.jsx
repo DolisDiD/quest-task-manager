@@ -4,7 +4,7 @@ import {
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
   Target, Zap, Search, Filter, Calendar, User, Users, Gift,
   Mail, Lock, Save, X, UserPlus, Send, Award, Home, ListChecks,
-  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu
+  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu, Package
 } from 'lucide-react';
 
 // 🔥 ВАШИ ДАННЫЕ SUPABASE:
@@ -822,44 +822,19 @@ const QuestTaskManager = () => {
                 <div className="text-gray-500 col-span-full">Нет карточек этого уровня</div>
               )}
               {(grouped[r] || []).map(card => (
-                <div key={card.cardId} className="bg-gray-800/30 border border-gray-700 rounded-xl p-2 group cursor-pointer" onClick={() => {
-                  if (!card.imageUrl) {
-                    const input = document.getElementById(`upload-${card.cardId}`);
-                    if (input) input.click();
-                  }
-                }}>
+                <div key={card.cardId} className="bg-gray-800/30 border border-gray-700 rounded-xl p-2 group">
                   <div className="relative w-full h-56 sm:h-64 rounded-lg overflow-hidden">
                     {card.imageUrl ? (
                       <img src={card.imageUrl} alt={card.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-xs text-gray-300">
-                        Нажмите для загрузки фото
+                        Изображение отсутствует
                       </div>
                     )}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
                       <div className="text-sm sm:text-base font-semibold truncate">{card.title}</div>
                     </div>
                   </div>
-                  <input id={`upload-${card.cardId}`} type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                    try {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const path = `${card.packId}/${card.cardId}.${file.name.split('.').pop() || 'jpg'}`;
-                      const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
-                      if (upErr) { addNotification('Ошибка загрузки: ' + upErr.message, 'error'); return; }
-                      const { data: pub } = supabase.storage.from('cards').getPublicUrl(path);
-                      const publicUrl = pub?.publicUrl;
-                      if (!publicUrl) { addNotification('Не удалось получить public URL', 'error'); return; }
-                      const { error: updErr } = await supabase.from('cards').update({ image_url: publicUrl }).eq('id', card.cardId);
-                      if (updErr) { addNotification('Ошибка сохранения URL: ' + updErr.message, 'error'); return; }
-                      addNotification('Изображение обновлено', 'success');
-                      await loadCollection(selectedPackId);
-                    } catch (er) {
-                      addNotification('Ошибка: ' + (er?.message || er), 'error');
-                    } finally {
-                      e.target.value = '';
-                    }
-                  }} />
                 </div>
               ))}
             </div>
@@ -1568,7 +1543,8 @@ const MyQuestsTab = () => {
     bonus: '',
     dueDate: '',
     assignedTo: null,
-    subtasks: []
+    subtasks: [],
+    rewardPackId: defaultPackId
   });
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
@@ -1673,7 +1649,7 @@ const MyQuestsTab = () => {
         due_date: localNewQuest.dueDate ? new Date(localNewQuest.dueDate).toISOString() : null,
         created_by: user.id,
         total_steps: localNewQuest.subtasks.length || 1,
-        reward_pack_id: defaultPackId
+        reward_pack_id: localNewQuest.rewardPackId || defaultPackId
       };
 
       const { data: createdQuest, error: questError } = await supabase
@@ -1723,7 +1699,8 @@ const MyQuestsTab = () => {
         bonus: '',
         dueDate: '',
         assignedTo: null,
-        subtasks: []
+        subtasks: [],
+        rewardPackId: defaultPackId
       });
       setLocalShowNewQuest(false);
       setQuestType('rare');
@@ -1891,6 +1868,19 @@ const MyQuestsTab = () => {
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Набор карточек в награду</label>
+              <select
+                value={localNewQuest.rewardPackId}
+                onChange={(e) => setLocalNewQuest({ ...localNewQuest, rewardPackId: e.target.value })}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+              >
+                {cardPacks.map(p => (
+                  <option key={p.id} value={p.id}>{p.title}{p.is_builtin ? ' (встроенная)' : ''}</option>
+                ))}
+              </select>
+            </div>
             
             <div>
               <label className="block text-sm font-medium mb-2">Описание квеста</label>
@@ -2011,7 +2001,8 @@ const MyQuestsTab = () => {
                   bonus: '',
                   dueDate: '',
                   assignedTo: null,
-                  subtasks: []
+                  subtasks: [],
+                  rewardPackId: defaultPackId
                 });
                 setQuestType('rare');
                 setShowSubtaskForm(false);
@@ -2661,6 +2652,15 @@ const MyQuestsTab = () => {
           <div className="text-gray-500">Создайте квест и назначьте его другу!</div>
         </div>
       )}
+
+      {showCreateModal && (
+        <CreatePackModal
+          user={user}
+          onClose={() => setShowCreateModal(false)}
+          onPacksUpdated={onPacksUpdated}
+          addNotification={addNotification}
+        />
+      )}
     </div>
   );
 };
@@ -2824,6 +2824,7 @@ const tabs = [
   { id: 'my-quests', label: 'Мои задания', icon: ListChecks },
   { id: 'rewards', label: 'Награды', icon: Trophy },
   { id: 'collection', label: 'Коллекция', icon: Award },
+  { id: 'my-packs', label: 'Мои наборы', icon: Package },
   { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
   { id: 'friends', label: 'Друзья', icon: Users }
 ];
@@ -3171,6 +3172,7 @@ return (
       {activeTab === 'my-quests' && <MyQuestsTab />}
       {activeTab === 'friends' && <FriendsTab />}
       {activeTab === 'assigned-quests' && <AssignedQuestsTab />}
+      {activeTab === 'my-packs' && <MyPacksTab user={user} cardPacks={cardPacks} addNotification={addNotification} onPacksUpdated={loadPacks} />}
     </div>
 
     {/* Achievements Modal */}
@@ -3239,6 +3241,254 @@ return (
     )}
   </div>
 );
+};
+
+const MyPacksTab = ({ user, cardPacks, addNotification, onPacksUpdated }) => {
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const myPacks = cardPacks.filter(p => p.owner_id === user.id && !p.is_builtin);
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Мои наборы</h2>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-4 py-2 rounded-lg transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Создать набор</span>
+        </button>
+      </div>
+
+      {myPacks.length === 0 ? (
+        <div className="text-center py-12 bg-gray-800/30 rounded-xl">
+          <Package className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <div className="text-gray-400 text-lg mb-2">У вас еще нет наборов</div>
+          <p className="text-gray-500">Создайте свой первый набор коллекционных карточек!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {myPacks.map(pack => (
+            <div key={pack.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 flex flex-col justify-between hover:border-yellow-400/50 transition-colors">
+              <div>
+                <h3 className="text-lg font-bold truncate">{pack.title}</h3>
+                <p className="text-sm text-gray-400 h-16 overflow-hidden">{pack.description}</p>
+              </div>
+              <div className="mt-4 flex justify-end space-x-2">
+                <button className="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-sm transition-colors">
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CreatePackModal = ({ user, onClose, onPacksUpdated, addNotification }) => {
+  const [packData, setPackData] = useState({
+    title: '',
+    description: '',
+    cards: Array.from({ length: 30 }, (_, i) => ({
+      id: i,
+      title: `Карточка #${i + 1}`,
+      rarity: 'base',
+      file: null,
+      previewUrl: null,
+    })),
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handlePackChange = (field, value) => {
+    setPackData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCardChange = (index, field, value) => {
+    const newCards = [...packData.cards];
+    const card = newCards[index];
+
+    if (field === 'file' && value) {
+      if (value.size > 1024 * 1024) { // 1MB limit
+        addNotification('Размер файла не должен превышать 1MB', 'error');
+        return;
+      }
+      card.file = value;
+      card.previewUrl = URL.createObjectURL(value);
+    } else {
+      card[field] = value;
+    }
+    setPackData(prev => ({ ...prev, cards: newCards }));
+  };
+
+  const handleSave = async () => {
+    if (!packData.title.trim()) {
+      addNotification('Введите название набора', 'error');
+      return;
+    }
+    const allFilesUploaded = packData.cards.every(c => c.file);
+    if (!allFilesUploaded) {
+      addNotification('Загрузите изображения для всех 30 карточек', 'error');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // 1. Create the pack
+      const { data: pack, error: packError } = await supabase
+        .from('card_packs')
+        .insert({
+          title: packData.title,
+          description: packData.description,
+          owner_id: user.id,
+          is_builtin: false,
+        })
+        .select()
+        .single();
+
+      if (packError) throw packError;
+
+      // 2. Upload images and prepare card data
+      const cardPromises = packData.cards.map(async (card, index) => {
+        const file = card.file;
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${pack.id}/${index + 1}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('cards')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          addNotification(`Ошибка загрузки: ${card.title}`, 'error');
+          throw uploadError;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('cards')
+          .getPublicUrl(filePath);
+
+        return {
+          pack_id: pack.id,
+          title: card.title,
+          rarity: card.rarity,
+          image_url: urlData.publicUrl,
+        };
+      });
+
+      const cardsToInsert = await Promise.all(cardPromises);
+
+      // 3. Insert card data
+      const { error: cardsError } = await supabase.from('cards').insert(cardsToInsert);
+      if (cardsError) throw cardsError;
+
+      addNotification('Набор успешно создан!', 'success');
+      onPacksUpdated();
+      onClose();
+
+    } catch (error) {
+      console.error('❌ Error saving pack:', error);
+      addNotification('Ошибка сохранения набора: ' + error.message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-600 rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <h3 className="text-xl font-bold text-yellow-400">Создать новый набор</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto space-y-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">Название набора</label>
+            <input
+              type="text"
+              placeholder="Например, 'Герои Меча и Магии'"
+              value={packData.title}
+              onChange={(e) => handlePackChange('title', e.target.value)}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Описание набора</label>
+            <textarea
+              placeholder="Краткое описание коллекции"
+              value={packData.description}
+              onChange={(e) => handlePackChange('description', e.target.value)}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+              rows="3"
+            />
+          </div>
+
+          <div className="border-t border-gray-700 pt-6">
+            <h4 className="font-medium mb-4">Карточки ({packData.cards.length} шт.)</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {packData.cards.map((card, index) => (
+                <div key={card.id} className="bg-gray-800/50 p-3 rounded-lg border border-gray-700 space-y-2">
+                  <div className="relative w-full h-32 rounded-md overflow-hidden bg-gray-700/50">
+                    <label className="cursor-pointer w-full h-full flex items-center justify-center">
+                      {card.previewUrl ? (
+                        <img src={card.previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-center text-xs text-gray-400 p-2">
+                          <Plus className="w-6 h-6 mx-auto mb-1" />
+                          <span>Загрузить фото</span>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/png, image/jpeg, image/webp"
+                        className="hidden"
+                        onChange={(e) => handleCardChange(index, 'file', e.target.files?.[0])}
+                      />
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Название"
+                    value={card.title}
+                    onChange={(e) => handleCardChange(index, 'title', e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm"
+                  />
+                  <select
+                    value={card.rarity}
+                    onChange={(e) => handleCardChange(index, 'rarity', e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm"
+                  >
+                    <option value="base">Base</option>
+                    <option value="rare">Rare</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-gray-700 flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg"
+          >
+            Отмена
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg disabled:bg-gray-500 flex items-center"
+          >
+            {isSaving && <Zap className="w-4 h-4 mr-2 animate-ping" />}
+            {isSaving ? 'Сохранение...' : 'Сохранить набор'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default QuestTaskManager;
