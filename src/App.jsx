@@ -104,6 +104,10 @@ const QuestTaskManager = () => {
   const [editingPackId, setEditingPackId] = useState(null);
   const [packCards, setPackCards] = useState([]);
   const [editingCard, setEditingCard] = useState(null);
+  const [showCreatePack, setShowCreatePack] = useState(false);
+  const [showCreateCard, setShowCreateCard] = useState(false);
+  const [newPackForm, setNewPackForm] = useState({ title: '', description: '' });
+  const [newCardForm, setNewCardForm] = useState({ title: '', rarity: 'base' });
   
   const difficultyColors = {
     common: 'text-gray-300 border-gray-500',
@@ -611,6 +615,63 @@ const QuestTaskManager = () => {
     }
   };
 
+  const createPack = async (title, description) => {
+    try {
+      const { data, error } = await supabase
+        .from('card_packs')
+        .insert({
+          title,
+          description: description || '',
+          is_builtin: false,
+          owner_id: user.id
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ Error creating pack:', error);
+        addNotification('Ошибка создания пачки: ' + error.message, 'error');
+        return null;
+      }
+      
+      addNotification('Пачка создана успешно', 'success');
+      await loadPacks(); // Reload packs
+      return data;
+    } catch (e) {
+      console.error('❌ Error in createPack:', e);
+      addNotification('Ошибка: ' + (e?.message || e), 'error');
+      return null;
+    }
+  };
+
+  const createCard = async (packId, title, rarity) => {
+    try {
+      const { data, error } = await supabase
+        .from('cards')
+        .insert({
+          pack_id: packId,
+          title,
+          rarity
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ Error creating card:', error);
+        addNotification('Ошибка создания карточки: ' + error.message, 'error');
+        return null;
+      }
+      
+      addNotification('Карточка создана успешно', 'success');
+      await loadPackCards(packId); // Reload pack cards
+      return data;
+    } catch (e) {
+      console.error('❌ Error in createCard:', e);
+      addNotification('Ошибка: ' + (e?.message || e), 'error');
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (selectedPackId) loadCollection(selectedPackId);
   }, [selectedPackId, user]);
@@ -900,44 +961,19 @@ const QuestTaskManager = () => {
                 <div className="text-gray-500 col-span-full">Нет карточек этого уровня</div>
               )}
               {(grouped[r] || []).map(card => (
-                <div key={card.cardId} className="bg-gray-800/30 border border-gray-700 rounded-xl p-2 group cursor-pointer" onClick={() => {
-                  if (!card.imageUrl) {
-                    const input = document.getElementById(`upload-${card.cardId}`);
-                    if (input) input.click();
-                  }
-                }}>
+                <div key={card.cardId} className="bg-gray-800/30 border border-gray-700 rounded-xl p-2 group">
                   <div className="relative w-full h-56 sm:h-64 rounded-lg overflow-hidden">
                     {card.imageUrl ? (
                       <img src={card.imageUrl} alt={card.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-xs text-gray-300">
-                        Нажмите для загрузки фото
+                        Нет изображения
                       </div>
                     )}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
                       <div className="text-sm sm:text-base font-semibold truncate">{card.title}</div>
                     </div>
                   </div>
-                  <input id={`upload-${card.cardId}`} type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                    try {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const path = `${card.packId}/${card.cardId}.${file.name.split('.').pop() || 'jpg'}`;
-                      const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
-                      if (upErr) { addNotification('Ошибка загрузки: ' + upErr.message, 'error'); return; }
-                      const { data: pub } = supabase.storage.from('cards').getPublicUrl(path);
-                      const publicUrl = pub?.publicUrl;
-                      if (!publicUrl) { addNotification('Не удалось получить public URL', 'error'); return; }
-                      const { error: updErr } = await supabase.from('cards').update({ image_url: publicUrl }).eq('id', card.cardId);
-                      if (updErr) { addNotification('Ошибка сохранения URL: ' + updErr.message, 'error'); return; }
-                      addNotification('Изображение обновлено', 'success');
-                      await loadCollection(selectedPackId);
-                    } catch (er) {
-                      addNotification('Ошибка: ' + (er?.message || er), 'error');
-                    } finally {
-                      e.target.value = '';
-                    }
-                  }} />
                 </div>
               ))}
             </div>
@@ -974,6 +1010,38 @@ const QuestTaskManager = () => {
       }
     };
 
+    const handleCreatePack = async () => {
+      if (!newPackForm.title.trim()) {
+        addNotification('Введите название пачки', 'error');
+        return;
+      }
+      
+      const pack = await createPack(newPackForm.title, newPackForm.description);
+      if (pack) {
+        setNewPackForm({ title: '', description: '' });
+        setShowCreatePack(false);
+        setEditingPackId(pack.id);
+      }
+    };
+
+    const handleCreateCard = async () => {
+      if (!newCardForm.title.trim()) {
+        addNotification('Введите название карточки', 'error');
+        return;
+      }
+      
+      if (!editingPackId) {
+        addNotification('Выберите пачку для создания карточки', 'error');
+        return;
+      }
+      
+      const card = await createCard(editingPackId, newCardForm.title, newCardForm.rarity);
+      if (card) {
+        setNewCardForm({ title: '', rarity: 'base' });
+        setShowCreateCard(false);
+      }
+    };
+
     const groupedCards = packCards.reduce((acc, card) => {
       acc[card.rarity] = acc[card.rarity] || [];
       acc[card.rarity].push(card);
@@ -983,7 +1051,16 @@ const QuestTaskManager = () => {
     return (
       <div>
         <div className="mb-6 bg-gray-800/30 rounded-xl p-4">
-          <label className="block text-sm font-medium mb-2">Выберите пачку для редактирования</label>
+          <div className="flex items-center justify-between mb-4">
+            <label className="block text-sm font-medium">Выберите пачку для редактирования</label>
+            <button
+              onClick={() => setShowCreatePack(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Создать пачку</span>
+            </button>
+          </div>
           <select
             value={editingPackId || ''}
             onChange={(e) => setEditingPackId(e.target.value)}
@@ -1004,8 +1081,17 @@ const QuestTaskManager = () => {
               <h2 className="text-xl font-bold">
                 Редактирование пачки: {packs.find(p => p.id === editingPackId)?.title}
               </h2>
-              <div className="text-sm text-gray-400">
-                {packCards.filter(c => c.rarity === 'base').length} базовых, {packCards.filter(c => c.rarity === 'rare').length} редких
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-gray-400">
+                  {packCards.filter(c => c.rarity === 'base').length} базовых, {packCards.filter(c => c.rarity === 'rare').length} редких
+                </div>
+                <button
+                  onClick={() => setShowCreateCard(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm flex items-center space-x-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Добавить карточку</span>
+                </button>
               </div>
             </div>
 
@@ -1074,6 +1160,96 @@ const QuestTaskManager = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Create Pack Modal */}
+        {showCreatePack && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
+              <h3 className="text-xl font-bold mb-4">Создать новую пачку</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Название пачки</label>
+                  <input
+                    type="text"
+                    value={newPackForm.title}
+                    onChange={(e) => setNewPackForm(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    placeholder="Введите название пачки"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Описание (необязательно)</label>
+                  <textarea
+                    value={newPackForm.description}
+                    onChange={(e) => setNewPackForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white h-20 resize-none"
+                    placeholder="Описание пачки"
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleCreatePack}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    Создать
+                  </button>
+                  <button
+                    onClick={() => setShowCreatePack(false)}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Card Modal */}
+        {showCreateCard && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
+              <h3 className="text-xl font-bold mb-4">Добавить карточку</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Название карточки</label>
+                  <input
+                    type="text"
+                    value={newCardForm.title}
+                    onChange={(e) => setNewCardForm(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    placeholder="Введите название карточки"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Редкость</label>
+                  <select
+                    value={newCardForm.rarity}
+                    onChange={(e) => setNewCardForm(prev => ({ ...prev, rarity: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                  >
+                    <option value="base">Базовая</option>
+                    <option value="rare">Редкая</option>
+                  </select>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleCreateCard}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    Добавить
+                  </button>
+                  <button
+                    onClick={() => setShowCreateCard(false)}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
