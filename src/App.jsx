@@ -4,7 +4,7 @@ import {
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
   Target, Zap, Search, Filter, Calendar, User, Users, Gift,
   Mail, Lock, Save, X, UserPlus, Send, Award, Home, ListChecks,
-  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu
+  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu, Settings
 } from 'lucide-react';
 
 // 🔥 ВАШИ ДАННЫЕ SUPABASE:
@@ -99,6 +99,11 @@ const QuestTaskManager = () => {
   // Collection
   const [selectedPackId, setSelectedPackId] = useState(null);
   const [userCards, setUserCards] = useState([]);
+  
+  // Pack Management
+  const [editingPackId, setEditingPackId] = useState(null);
+  const [packCards, setPackCards] = useState([]);
+  const [editingCard, setEditingCard] = useState(null);
   
   const difficultyColors = {
     common: 'text-gray-300 border-gray-500',
@@ -537,9 +542,82 @@ const QuestTaskManager = () => {
     }
   };
 
+  const loadPackCards = async (packId) => {
+    try {
+      if (!packId) return;
+      const { data, error } = await supabase
+        .from('cards')
+        .select('id, pack_id, title, rarity, image_url')
+        .eq('pack_id', packId)
+        .order('rarity', { ascending: false })
+        .order('title', { ascending: true });
+      
+      if (error) {
+        console.error('❌ Error loading pack cards:', error);
+        return;
+      }
+      
+      setPackCards(data || []);
+    } catch (e) {
+      console.error('❌ Error in loadPackCards:', e);
+    }
+  };
+
+  const updateCard = async (cardId, updates) => {
+    try {
+      const { error } = await supabase
+        .from('cards')
+        .update(updates)
+        .eq('id', cardId);
+      
+      if (error) {
+        console.error('❌ Error updating card:', error);
+        addNotification('Ошибка обновления карточки: ' + error.message, 'error');
+        return false;
+      }
+      
+      addNotification('Карточка обновлена', 'success');
+      return true;
+    } catch (e) {
+      console.error('❌ Error in updateCard:', e);
+      addNotification('Ошибка: ' + (e?.message || e), 'error');
+      return false;
+    }
+  };
+
+  const uploadCardImage = async (cardId, file) => {
+    try {
+      const path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
+      const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
+      
+      if (upErr) {
+        addNotification('Ошибка загрузки: ' + upErr.message, 'error');
+        return null;
+      }
+      
+      const { data: pub } = supabase.storage.from('cards').getPublicUrl(path);
+      const publicUrl = pub?.publicUrl;
+      
+      if (!publicUrl) {
+        addNotification('Не удалось получить public URL', 'error');
+        return null;
+      }
+      
+      return publicUrl;
+    } catch (e) {
+      console.error('❌ Error in uploadCardImage:', e);
+      addNotification('Ошибка: ' + (e?.message || e), 'error');
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (selectedPackId) loadCollection(selectedPackId);
   }, [selectedPackId, user]);
+
+  useEffect(() => {
+    if (editingPackId) loadPackCards(editingPackId);
+  }, [editingPackId]);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -865,6 +943,139 @@ const QuestTaskManager = () => {
             </div>
           </div>
         ))}
+      </div>
+    );
+  };
+
+  const PackManagerTab = () => {
+    const packs = cardPacks;
+    const isAdmin = user?.id === 1; // Admin user ID is 1
+    
+    // Check if user can edit a pack
+    const canEditPack = (pack) => {
+      if (pack.is_builtin) {
+        return isAdmin; // Only admin can edit built-in packs
+      }
+      return pack.owner_id === user?.id; // Only owner can edit custom packs
+    };
+
+    const handleImageUpload = async (cardId, file) => {
+      const imageUrl = await uploadCardImage(cardId, file);
+      if (imageUrl) {
+        await updateCard(cardId, { image_url: imageUrl });
+        await loadPackCards(editingPackId);
+      }
+    };
+
+    const handleCardEdit = async (cardId, field, value) => {
+      const success = await updateCard(cardId, { [field]: value });
+      if (success) {
+        await loadPackCards(editingPackId);
+      }
+    };
+
+    const groupedCards = packCards.reduce((acc, card) => {
+      acc[card.rarity] = acc[card.rarity] || [];
+      acc[card.rarity].push(card);
+      return acc;
+    }, {});
+
+    return (
+      <div>
+        <div className="mb-6 bg-gray-800/30 rounded-xl p-4">
+          <label className="block text-sm font-medium mb-2">Выберите пачку для редактирования</label>
+          <select
+            value={editingPackId || ''}
+            onChange={(e) => setEditingPackId(e.target.value)}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+          >
+            <option value="">Выберите пачку...</option>
+            {packs.map(p => (
+              <option key={p.id} value={p.id} disabled={!canEditPack(p)}>
+                {p.title}{p.is_builtin ? ' (встроенная)' : ''} {!canEditPack(p) ? '- Нет доступа' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {editingPackId && (
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">
+                Редактирование пачки: {packs.find(p => p.id === editingPackId)?.title}
+              </h2>
+              <div className="text-sm text-gray-400">
+                {packCards.filter(c => c.rarity === 'base').length} базовых, {packCards.filter(c => c.rarity === 'rare').length} редких
+              </div>
+            </div>
+
+            {['base', 'rare'].map(r => (
+              <div key={r} className="mb-8">
+                <h3 className="text-lg font-bold mb-4 capitalize text-center">
+                  {r === 'base' ? 'Базовые карточки (25 шт.)' : 'Редкие карточки (5 шт.)'}
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {(groupedCards[r] || []).map(card => (
+                    <div key={card.id} className="bg-gray-800/30 border border-gray-700 rounded-xl p-3 group">
+                      <div className="relative w-full h-48 sm:h-56 rounded-lg overflow-hidden mb-3">
+                        {card.image_url ? (
+                          <img src={card.image_url} alt={card.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-xs text-gray-300">
+                            Нет изображения
+                          </div>
+                        )}
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
+                          <div className="text-sm font-semibold truncate">{card.title}</div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Название</label>
+                          <input
+                            type="text"
+                            value={card.title}
+                            onChange={(e) => handleCardEdit(card.id, 'title', e.target.value)}
+                            className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                            disabled={!canEditPack(packs.find(p => p.id === editingPackId))}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Редкость</label>
+                          <select
+                            value={card.rarity}
+                            onChange={(e) => handleCardEdit(card.id, 'rarity', e.target.value)}
+                            className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                            disabled={!canEditPack(packs.find(p => p.id === editingPackId))}
+                          >
+                            <option value="base">Базовая</option>
+                            <option value="rare">Редкая</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Изображение</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload(card.id, file);
+                            }}
+                            className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-gray-600 file:text-white hover:file:bg-gray-500"
+                            disabled={!canEditPack(packs.find(p => p.id === editingPackId))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -2824,6 +3035,7 @@ const tabs = [
   { id: 'my-quests', label: 'Мои задания', icon: ListChecks },
   { id: 'rewards', label: 'Награды', icon: Trophy },
   { id: 'collection', label: 'Коллекция', icon: Award },
+  { id: 'pack-manager', label: 'Управление пачками', icon: Settings },
   { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
   { id: 'friends', label: 'Друзья', icon: Users }
 ];
@@ -3168,6 +3380,7 @@ return (
       
       {activeTab === 'rewards' && <RewardsTab />}
       {activeTab === 'collection' && <CollectionTab />}
+      {activeTab === 'pack-manager' && <PackManagerTab />}
       {activeTab === 'my-quests' && <MyQuestsTab />}
       {activeTab === 'friends' && <FriendsTab />}
       {activeTab === 'assigned-quests' && <AssignedQuestsTab />}
