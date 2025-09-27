@@ -1024,6 +1024,10 @@ const QuestTaskManager = () => {
       }
     };
 
+    const handlePackFormChange = (field, value) => {
+      setNewPackForm(prev => ({ ...prev, [field]: value }));
+    };
+
     const handleCreateCard = async () => {
       if (!newCardForm.title.trim()) {
         addNotification('Введите название карточки', 'error');
@@ -1040,6 +1044,10 @@ const QuestTaskManager = () => {
         setNewCardForm({ title: '', rarity: 'base' });
         setShowCreateCard(false);
       }
+    };
+
+    const handleCardFormChange = (field, value) => {
+      setNewCardForm(prev => ({ ...prev, [field]: value }));
     };
 
     const groupedCards = packCards.reduce((acc, card) => {
@@ -1174,7 +1182,7 @@ const QuestTaskManager = () => {
                   <input
                     type="text"
                     value={newPackForm.title}
-                    onChange={(e) => setNewPackForm(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={(e) => handlePackFormChange('title', e.target.value)}
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
                     placeholder="Введите название пачки"
                   />
@@ -1183,7 +1191,7 @@ const QuestTaskManager = () => {
                   <label className="block text-sm font-medium mb-2">Описание (необязательно)</label>
                   <textarea
                     value={newPackForm.description}
-                    onChange={(e) => setNewPackForm(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e) => handlePackFormChange('description', e.target.value)}
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white h-20 resize-none"
                     placeholder="Описание пачки"
                   />
@@ -1218,7 +1226,7 @@ const QuestTaskManager = () => {
                   <input
                     type="text"
                     value={newCardForm.title}
-                    onChange={(e) => setNewCardForm(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={(e) => handleCardFormChange('title', e.target.value)}
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
                     placeholder="Введите название карточки"
                   />
@@ -1227,7 +1235,7 @@ const QuestTaskManager = () => {
                   <label className="block text-sm font-medium mb-2">Редкость</label>
                   <select
                     value={newCardForm.rarity}
-                    onChange={(e) => setNewCardForm(prev => ({ ...prev, rarity: e.target.value }))}
+                    onChange={(e) => handleCardFormChange('rarity', e.target.value)}
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
                   >
                     <option value="base">Базовая</option>
