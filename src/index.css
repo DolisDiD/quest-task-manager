@@ -1,0 +1,302 @@
+/* Quest Manager - Modern UI/UX */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap');
+@import './styles/design-tokens.css';
+
+/* === БАЗОВЫЕ СТИЛИ === */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-family-sans);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--gradient-dark);
+  color: var(--gray-100);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* === СКРОЛЛБАР === */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gray-800);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-500);
+  border-radius: var(--radius-full);
+  transition: background var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-600);
+}
+
+/* === СЕЛЕКТОРЫ === */
+::selection {
+  background: var(--primary-500);
+  color: white;
+}
+
+::-moz-selection {
+  background: var(--primary-500);
+  color: white;
+}
+
+/* === FOCUS СТИЛИ === */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+}
+
+/* === КНОПКИ === */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all var(--transition-normal);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* === ИНПУТЫ === */
+input, textarea, select {
+  font-family: inherit;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  color: var(--gray-100);
+  transition: all var(--transition-normal);
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  background: var(--glass-bg-hover);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--gray-400);
+}
+
+/* === ССЫЛКИ === */
+a {
+  color: var(--primary-400);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--primary-300);
+}
+
+/* === УТИЛИТАРНЫЕ КЛАССЫ === */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-4);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  transition: all var(--transition-normal);
+}
+
+.glass-card:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-bg {
+  background: var(--gradient-primary);
+}
+
+.gradient-bg-secondary {
+  background: var(--gradient-secondary);
+}
+
+.gradient-bg-accent {
+  background: var(--gradient-accent);
+}
+
+/* === АНИМАЦИИ ЗАГРУЗКИ === */
+.loading-skeleton {
+  background: linear-gradient(90deg, var(--gray-700) 25%, var(--gray-600) 50%, var(--gray-700) 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* === АДАПТИВНОСТЬ === */
+@media (max-width: 640px) {
+  .container {
+    padding: 0 var(--space-3);
+  }
+  
+  .glass-card {
+    border-radius: var(--radius-lg);
+  }
+}
+
+/* === ТЕМНАЯ ТЕМА (по умолчанию) === */
+.dark {
+  color-scheme: dark;
+}
+
+/* === АНИМАЦИИ ПОЯВЛЕНИЯ === */
+.fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* === HOVER ЭФФЕКТЫ === */
+.hover-lift {
+  transition: transform var(--transition-normal);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+.hover-glow {
+  transition: box-shadow var(--transition-normal);
+}
+
+.hover-glow:hover {
+  box-shadow: var(--shadow-glow);
+}
+
+.hover-scale {
+  transition: transform var(--transition-normal);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* === СТАТУСНЫЕ ЦВЕТА === */
+.text-success {
+  color: var(--success-500);
+}
+
+.text-warning {
+  color: var(--warning-500);
+}
+
+.text-error {
+  color: var(--error-500);
+}
+
+.text-primary {
+  color: var(--primary-500);
+}
+
+.text-secondary {
+  color: var(--secondary-500);
+}
+
+.text-accent {
+  color: var(--accent-500);
+}
+
+/* === ФОНОВЫЕ ЦВЕТА === */
+.bg-success {
+  background-color: var(--success-500);
+}
+
+.bg-warning {
+  background-color: var(--warning-500);
+}
+
+.bg-error {
+  background-color: var(--error-500);
+}
+
+.bg-primary {
+  background-color: var(--primary-500);
+}
+
+.bg-secondary {
+  background-color: var(--secondary-500);
+}
+
+.bg-accent {
+  background-color: var(--accent-500);
+}
+
+/* === ГРАНИЦЫ === */
+.border-success {
+  border-color: var(--success-500);
+}
+
+.border-warning {
+  border-color: var(--warning-500);
+}
+
+.border-error {
+  border-color: var(--error-500);
+}
+
+.border-primary {
+  border-color: var(--primary-500);
+}
+
+.border-secondary {
+  border-color: var(--secondary-500);
+}
+
+.border-accent {
+  border-color: var(--accent-500);
+}

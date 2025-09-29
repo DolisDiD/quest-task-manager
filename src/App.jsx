@@ -3414,14 +3414,14 @@ return (
     <NotificationSystem notifications={notifications} onClose={closeNotification} />
 
     {/* Header */}
-    <div className="bg-black/50 backdrop-blur-sm border-b border-gray-700">
+    <div className="bg-glass backdrop-blur-strong border-b border-glass-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Sword className="w-8 h-8 text-yellow-400" />
             <button
               onClick={() => setActiveTab('profile')}
-              className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 px-4 py-2 rounded-lg transition-all duration-200 border border-gray-600 hover:border-gray-500"
+              className="hidden sm:flex items-center space-x-2 glass hover:glass-hover px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
             >
               <Mail className="w-4 h-4 text-blue-400" />
               <span className="text-white font-medium truncate max-w-[150px]">{currentUser.email}</span>
@@ -3463,7 +3463,7 @@ return (
             {/* Logout button */}
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-1 sm:space-x-2 bg-red-600 hover:bg-red-500 px-2 sm:px-3 py-2 rounded-lg transition-colors"
+              className="flex items-center space-x-1 sm:space-x-2 gradient-bg hover:shadow-glow px-2 sm:px-3 py-2 rounded-lg transition-all duration-300 hover:scale-105"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Выйти</span>
@@ -3487,10 +3487,10 @@ return (
                     setActiveTab(tab.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all relative ${
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-300 relative ${
                     activeTab === tab.id
-                      ? 'bg-gray-700 text-yellow-400'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                      ? 'glass text-primary-400 shadow-glow'
+                      : 'text-gray-400 hover:text-white hover:glass-hover'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -3532,10 +3532,10 @@ return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-3 rounded-t-lg transition-all relative ${
+                className={`flex items-center space-x-2 px-4 py-3 rounded-t-lg transition-all duration-300 relative ${
                   activeTab === tab.id
-                    ? 'bg-gray-700 text-yellow-400 border-b-2 border-yellow-400'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                    ? 'glass text-primary-400 border-b-2 border-primary-500 shadow-glow'
+                    : 'text-gray-400 hover:text-white hover:glass-hover'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -3571,33 +3571,33 @@ return (
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
           
-          <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6">
-            <h3 className="text-xl font-bold mb-4">Быстрые действия</h3>
+          <div className="glass-card p-4 sm:p-6">
+            <h3 className="text-xl font-bold mb-4 gradient-text">Быстрые действия</h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <button
                 onClick={() => setActiveTab('my-quests')}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-lg p-4 transition-all"
+                className="gradient-bg hover:shadow-glow rounded-lg p-4 transition-all duration-300 hover:scale-105"
               >
                 <ListChecks className="w-6 h-6 mb-2 mx-auto" />
                 <div className="text-sm">Мои квесты</div>
               </button>
               <button
                 onClick={() => setActiveTab('rewards')}
-                className="bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 rounded-lg p-4 transition-all"
+                className="gradient-bg-secondary hover:shadow-glow-purple rounded-lg p-4 transition-all duration-300 hover:scale-105"
               >
                 <Trophy className="w-6 h-6 mb-2 mx-auto" />
                 <div className="text-sm">Награды</div>
               </button>
               <button
                 onClick={() => setActiveTab('friends')}
-                className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 rounded-lg p-4 transition-all"
+                className="gradient-bg-accent hover:shadow-glow-cyan rounded-lg p-4 transition-all duration-300 hover:scale-105"
               >
                 <Users className="w-6 h-6 mb-2 mx-auto" />
                 <div className="text-sm">Друзья</div>
               </button>
               <button
                 onClick={() => setShowAchievements(true)}
-                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 rounded-lg p-4 transition-all"
+                className="gradient-bg-secondary hover:shadow-glow-purple rounded-lg p-4 transition-all duration-300 hover:scale-105"
               >
                 <Award className="w-6 h-6 mb-2 mx-auto" />
                 <div className="text-sm">Достижения</div>
