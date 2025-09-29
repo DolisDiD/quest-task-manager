@@ -83,6 +83,38 @@ const AdminPanel = ({ userId }) => {
     }
   };
 
+  // Удаление подписки пользователя
+  const removeUserSubscription = async (userId) => {
+    if (!confirm('Вы уверены, что хотите удалить подписку этого пользователя?')) {
+      return;
+    }
+
+    try {
+      // Удаляем роль пользователя
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .in('role_type', ['archimage', 'explorer']);
+
+      if (roleError) throw roleError;
+
+      // Удаляем подписку
+      const { error: subError } = await supabase
+        .from('subscriptions')
+        .update({ status: 'cancelled' })
+        .eq('user_id', userId);
+
+      if (subError) throw subError;
+
+      alert('Подписка успешно удалена!');
+      loadAllUsers(); // Перезагружаем список пользователей
+    } catch (err) {
+      console.error('Error removing subscription:', err);
+      alert(`Ошибка удаления подписки: ${err.message}`);
+    }
+  };
+
   // Форматирование даты
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('ru-RU', {
@@ -321,7 +353,7 @@ const AdminPanel = ({ userId }) => {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         user.is_active
                           ? 'bg-green-500/20 text-green-400 border border-green-500/30'
@@ -329,6 +361,17 @@ const AdminPanel = ({ userId }) => {
                       }`}>
                         {user.is_active ? 'Активен' : 'Неактивен'}
                       </span>
+                      
+                      {/* Кнопка удаления подписки (только для не-админов) */}
+                      {user.role_type !== 'admin' && user.is_active && (
+                        <button
+                          onClick={() => removeUserSubscription(user.user_id)}
+                          className="p-2 text-gray-300 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-all duration-200"
+                          title="Удалить подписку"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                 </div>
               </div>

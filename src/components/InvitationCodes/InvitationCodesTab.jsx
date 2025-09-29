@@ -19,7 +19,7 @@ const InvitationCodesTab = ({ userId }) => {
   const { roleLimits, checkCodeLimit } = useRoles(userId);
   
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newCodeType, setNewCodeType] = useState('explorer');
+  const [newCodeType] = useState('explorer'); // Всегда создаем коды для исследователей
   const [expiresInDays, setExpiresInDays] = useState(30);
   const [copiedCode, setCopiedCode] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -295,16 +295,11 @@ const InvitationCodesTab = ({ userId }) => {
                 <label className="block text-sm font-medium text-gray-300 mb-3">
                   Тип роли
                 </label>
-                <select
-                  value={newCodeType}
-                  onChange={(e) => setNewCodeType(e.target.value)}
-                  className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="explorer">Исследователь</option>
-                  {roleLimits?.role_type === 'admin' && (
-                    <option value="archimage">Архимаг</option>
-                  )}
-                </select>
+                <div className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white flex items-center space-x-3">
+                  <User className="w-5 h-5 text-blue-400" />
+                  <span>Исследователь</span>
+                  <span className="text-gray-400 text-sm">(единственная доступная роль)</span>
+                </div>
               </div>
 
               <div>

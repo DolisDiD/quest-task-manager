@@ -3365,6 +3365,17 @@ return (
                 </button>
               );
             })}
+            
+            {/* Кнопка активации кода для пользователей без роли */}
+            {!userRole && (
+              <button
+                onClick={() => setShowActivateCodeModal(true)}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-all bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border border-blue-500/30"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="text-sm">Активировать код</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -3401,6 +3412,17 @@ return (
               </button>
             );
           })}
+          
+          {/* Кнопка активации кода для пользователей без роли */}
+          {!userRole && (
+            <button
+              onClick={() => setShowActivateCodeModal(true)}
+              className="flex items-center space-x-2 px-4 py-3 rounded-t-lg transition-all bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border border-blue-500/30 hover:border-blue-400/50"
+            >
+              <Shield className="w-4 h-4" />
+              <span className="whitespace-nowrap">Активировать код</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -3409,6 +3431,31 @@ return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
+          {/* Уведомление о необходимости активации кода */}
+          {!userRole && (
+            <div className="bg-gradient-to-r from-blue-500/20 to-blue-600/20 border border-blue-400/30 rounded-xl p-6 backdrop-blur-sm">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-500/20 rounded-lg">
+                  <Shield className="w-6 h-6 text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-blue-200 mb-1">
+                    Активируйте код приглашения
+                  </h3>
+                  <p className="text-blue-300 text-sm mb-3">
+                    Для полного доступа к функциям приложения необходимо активировать код приглашения от вашего наставника.
+                  </p>
+                  <button
+                    onClick={() => setShowActivateCodeModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                  >
+                    Активировать код
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6">
             <h3 className="text-xl font-bold mb-4">Быстрые действия</h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
