@@ -4,7 +4,7 @@ import { useRoles } from '../../hooks/useRoles';
 import { supabase } from '../../lib/supabase';
 import { 
   Crown, Shield, Users, Plus, Copy, Check, 
-  RefreshCw, Eye, EyeOff, Trash2, AlertCircle
+  RefreshCw, Eye, EyeOff, Trash2, AlertCircle, User
 } from 'lucide-react';
 
 const AdminPanel = ({ userId }) => {
@@ -27,16 +27,25 @@ const AdminPanel = ({ userId }) => {
   const loadAllUsers = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const { data, error } = await supabase
         .from('user_roles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading users:', error);
+        setError(`Ошибка загрузки пользователей: ${error.message}`);
+        setAllUsers([]);
+        return;
+      }
+      
       setAllUsers(data || []);
     } catch (err) {
       console.error('Error loading users:', err);
-      setError(err.message);
+      setError(`Ошибка загрузки пользователей: ${err.message}`);
+      setAllUsers([]);
     } finally {
       setLoading(false);
     }
@@ -50,10 +59,18 @@ const AdminPanel = ({ userId }) => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading codes:', error);
+        setError(`Ошибка загрузки кодов: ${error.message}`);
+        setAllCodes([]);
+        return;
+      }
+      
       setAllCodes(data || []);
     } catch (err) {
       console.error('Error loading all codes:', err);
+      setError(`Ошибка загрузки кодов: ${err.message}`);
+      setAllCodes([]);
     }
   };
 
@@ -153,9 +170,39 @@ const AdminPanel = ({ userId }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
-        <span className="ml-2">Загрузка админ-панели...</span>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white p-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-center p-8">
+          <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+          <span className="ml-2">Загрузка админ-панели...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-6 h-6 text-red-400" />
+              <div>
+                <h3 className="text-lg font-semibold text-red-200 mb-2">Ошибка загрузки</h3>
+                <p className="text-red-300">{error}</p>
+                <button
+                  onClick={() => {
+                    setError(null);
+                    loadAllUsers();
+                    loadAllCodes();
+                  }}
+                  className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Попробовать снова
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -183,7 +230,7 @@ const AdminPanel = ({ userId }) => {
               </div>
               <div>
                 <p className="text-blue-300 text-sm font-medium">Всего пользователей</p>
-                <p className="text-2xl font-bold text-white">{allUsers.length}</p>
+                <p className="text-2xl font-bold text-white">{allUsers?.length || 0}</p>
               </div>
             </div>
           </div>
@@ -195,7 +242,7 @@ const AdminPanel = ({ userId }) => {
               </div>
               <div>
                 <p className="text-green-300 text-sm font-medium">Активные коды</p>
-                <p className="text-2xl font-bold text-white">{allCodes.filter(code => code.is_active && !code.used_by).length}</p>
+                <p className="text-2xl font-bold text-white">{allCodes?.filter(code => code.is_active && !code.used_by).length || 0}</p>
               </div>
             </div>
           </div>
@@ -207,7 +254,7 @@ const AdminPanel = ({ userId }) => {
               </div>
               <div>
                 <p className="text-yellow-300 text-sm font-medium">Архимаги</p>
-                <p className="text-2xl font-bold text-white">{allUsers.filter(user => user.role_type === 'archimage').length}</p>
+                <p className="text-2xl font-bold text-white">{allUsers?.filter(user => user.role_type === 'archimage').length || 0}</p>
               </div>
             </div>
           </div>
@@ -219,7 +266,7 @@ const AdminPanel = ({ userId }) => {
               </div>
               <div>
                 <p className="text-purple-300 text-sm font-medium">Исследователи</p>
-                <p className="text-2xl font-bold text-white">{allUsers.filter(user => user.role_type === 'explorer').length}</p>
+                <p className="text-2xl font-bold text-white">{allUsers?.filter(user => user.role_type === 'explorer').length || 0}</p>
               </div>
             </div>
           </div>
@@ -242,7 +289,7 @@ const AdminPanel = ({ userId }) => {
           </div>
 
           <div className="space-y-4">
-            {allCodes.length === 0 ? (
+            {(!allCodes || allCodes.length === 0) ? (
               <div className="text-center py-12">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-700/50 rounded-full flex items-center justify-center">
                   <Shield className="w-8 h-8 text-gray-400" />
@@ -314,7 +361,7 @@ const AdminPanel = ({ userId }) => {
           </h3>
         
           <div className="space-y-4">
-            {allUsers.length === 0 ? (
+            {(!allUsers || allUsers.length === 0) ? (
               <div className="text-center py-12">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-700/50 rounded-full flex items-center justify-center">
                   <Users className="w-8 h-8 text-gray-400" />
