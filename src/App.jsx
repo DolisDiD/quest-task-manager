@@ -3746,8 +3746,8 @@ return (
                       <div className="flex items-center space-x-2 mt-1">
                         <Shield className="w-4 h-4 text-blue-400" />
                         <span className="text-sm text-blue-400">
-                          {userRole.role_type === 'admin' ? 'Админ' :
-                           userRole.role_type === 'archimage' ? 'Архимаг' :
+                          {userRole.role_type === 'admin' ? 'Админ' : 
+                           userRole.role_type === 'archimage' ? 'Архимаг' : 
                            userRole.role_type === 'explorer' ? 'Исследователь' : userRole.role_type}
                         </span>
                         {userRole?.role_type === 'admin' && (
