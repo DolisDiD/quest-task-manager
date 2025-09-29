@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Skeleton, SkeletonCard, SkeletonQuest } from './Skeleton';
+import Skeleton, { SkeletonCard, SkeletonQuest } from './Skeleton';
 
 const SkeletonList = ({ 
   type = 'card',
