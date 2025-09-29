@@ -7,6 +7,14 @@ import {
   Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu, Settings
 } from 'lucide-react';
 
+// Импорты для системы ролей
+import { useRoles } from './hooks/useRoles';
+import { useInvitationCodes } from './hooks/useInvitationCodes';
+import { useSubscriptions } from './hooks/useSubscriptions';
+import InvitationCodesTab from './components/InvitationCodes/InvitationCodesTab';
+import ActivateCodeModal from './components/InvitationCodes/ActivateCodeModal';
+import AdminPanel from './components/Admin/AdminPanel';
+
 // 🔥 ВАШИ ДАННЫЕ SUPABASE:
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hqhaqtwxqawslwpjrojd.supabase.co';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxaGFxdHd4cWF3c2x3cGpyb2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyNDc5MjcsImV4cCI6MjA2NTgyMzkyN30.bNQxmic8Tju-bbCNRoAgbYZCMhPQRY_tPa4K-GHcZM4';
@@ -46,6 +54,15 @@ const QuestTaskManager = () => {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  
+  // Состояние для системы ролей
+  const [showActivateCodeModal, setShowActivateCodeModal] = useState(false);
+  
+  // Хуки для системы ролей
+  const { userRole, roleLimits, hasPermission } = useRoles(user?.id);
+  const { codes, createInvitationCode } = useInvitationCodes(user?.id);
+  const { subscription } = useSubscriptions(user?.id);
+  
   const addNotification = (message, type = 'info', timeoutMs = 3000) => {
     const id = Date.now() + Math.random();
     setNotifications(prev => [...prev, { id, message, type }]);
@@ -3238,7 +3255,10 @@ const tabs = [
   { id: 'collection', label: 'Коллекция', icon: Award },
   { id: 'pack-manager', label: 'Управление пачками', icon: Settings },
   { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
-  { id: 'friends', label: 'Друзья', icon: Users }
+  { id: 'friends', label: 'Друзья', icon: Users },
+  // Новые вкладки для системы ролей
+  ...(hasPermission('can_create_codes') ? [{ id: 'invitation-codes', label: 'Коды приглашений', icon: Shield }] : []),
+  ...(userRole?.role_type === 'admin' ? [{ id: 'admin', label: 'Админ-панель', icon: Settings }] : [])
 ];
 
 return (
@@ -3477,6 +3497,24 @@ return (
                   <div>
                     <h3 className="text-xl font-bold">{currentUser.name}</h3>
                     <div className="text-gray-400">Уровень {currentUser.level} • {currentUser.totalXp} XP</div>
+                    {userRole && (
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Shield className="w-4 h-4 text-blue-400" />
+                        <span className="text-sm text-blue-400">
+                          {userRole.role_type === 'admin' ? 'Админ' :
+                           userRole.role_type === 'archimage' ? 'Архимаг' :
+                           userRole.role_type === 'explorer' ? 'Исследователь' : userRole.role_type}
+                        </span>
+                        {!userRole.role_type && (
+                          <button
+                            onClick={() => setShowActivateCodeModal(true)}
+                            className="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded transition-colors"
+                          >
+                            Активировать код
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -3585,6 +3623,10 @@ return (
       {activeTab === 'my-quests' && <MyQuestsTab />}
       {activeTab === 'friends' && <FriendsTab />}
       {activeTab === 'assigned-quests' && <AssignedQuestsTab />}
+      
+      {/* Новые вкладки для системы ролей */}
+      {activeTab === 'invitation-codes' && <InvitationCodesTab userId={user?.id} />}
+      {activeTab === 'admin' && <AdminPanel userId={user?.id} />}
     </div>
 
     {/* Achievements Modal */}
@@ -3651,6 +3693,15 @@ return (
         </div>
       </div>
     )}
+
+    {/* Модальное окно для активации кода приглашения */}
+    <ActivateCodeModal
+      isOpen={showActivateCodeModal}
+      onClose={() => setShowActivateCodeModal(false)}
+      onSuccess={(roleType) => {
+        addNotification(`Роль ${roleType} успешно активирована!`, 'success');
+      }}
+    />
   </div>
 );
 };
