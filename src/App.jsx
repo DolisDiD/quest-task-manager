@@ -610,6 +610,38 @@ const QuestTaskManager = () => {
     }
   };
 
+  // Функция для тестирования Storage
+  const testStorageConnection = async () => {
+    try {
+      console.log('Testing Storage connection...');
+      
+      // Тест 1: Проверяем listBuckets
+      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+      console.log('listBuckets result:', { buckets, bucketError });
+      
+      // Тест 2: Прямой доступ к bucket 'cards'
+      const { data: listData, error: listError } = await supabase.storage.from('cards').list('', { limit: 1 });
+      console.log('Direct cards bucket access:', { listData, listError });
+      
+      // Тест 3: Проверяем права на загрузку
+      const testFile = new File(['test'], 'test.txt', { type: 'text/plain' });
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('cards')
+        .upload('test/test.txt', testFile, { upsert: true });
+      console.log('Upload test result:', { uploadData, uploadError });
+      
+      return {
+        buckets: buckets || [],
+        bucketError,
+        listError,
+        uploadError
+      };
+    } catch (e) {
+      console.error('Storage test failed:', e);
+      return { error: e.message };
+    }
+  };
+
   // Функция для создания bucket'а для пользователя
   const createUserBucket = async (userId) => {
     try {
@@ -672,10 +704,44 @@ const QuestTaskManager = () => {
   const uploadCardImage = async (cardId, file, packId = null) => {
     try {
       // Сначала проверяем, какие bucket'ы доступны
+      console.log('Checking buckets...');
       const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+      
+      console.log('Bucket check result:', { buckets, bucketError });
       
       if (bucketError) {
         console.error('Error checking buckets:', bucketError);
+        console.error('Error details:', {
+          message: bucketError.message,
+          details: bucketError.details,
+          hint: bucketError.hint,
+          code: bucketError.code
+        });
+        
+        // Попробуем альтернативный способ - проверить bucket напрямую
+        console.log('Trying direct bucket access...');
+        try {
+          const { data: testData, error: testError } = await supabase.storage.from('cards').list('', { limit: 1 });
+          console.log('Direct access test:', { testData, testError });
+          
+          if (!testError) {
+            console.log('Cards bucket is accessible directly!');
+            // Если прямой доступ работает, используем bucket 'cards'
+            const path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
+            const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
+            
+            if (upErr) {
+              addNotification('Ошибка загрузки: ' + upErr.message, 'error');
+              return null;
+            }
+            
+            const { data: pub } = supabase.storage.from('cards').getPublicUrl(path);
+            return pub?.publicUrl;
+          }
+        } catch (directError) {
+          console.error('Direct access failed:', directError);
+        }
+        
         addNotification('Ошибка проверки хранилища: ' + bucketError.message, 'error');
         return null;
       }
@@ -3638,6 +3704,19 @@ return (
                            userRole.role_type === 'archimage' ? 'Архимаг' :
                            userRole.role_type === 'explorer' ? 'Исследователь' : userRole.role_type}
                         </span>
+                        {userRole?.role_type === 'admin' && (
+                          <button
+                            onClick={async () => {
+                              console.log('Running Storage test...');
+                              const result = await testStorageConnection();
+                              console.log('Storage test completed:', result);
+                              addNotification('Результат теста Storage в консоли', 'info');
+                            }}
+                            className="text-xs bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded transition-colors ml-2"
+                          >
+                            Тест Storage
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
