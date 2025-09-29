@@ -681,6 +681,7 @@ const QuestTaskManager = () => {
       }
       
       console.log('Available buckets:', buckets);
+      console.log('Buckets count:', buckets?.length || 0);
       
       let bucketName = 'cards'; // По умолчанию используем 'cards'
       let path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
@@ -688,14 +689,48 @@ const QuestTaskManager = () => {
       // Проверяем, существует ли bucket 'cards'
       const cardsBucket = buckets?.find(bucket => bucket.name === 'cards');
       if (!cardsBucket) {
+        console.warn('Cards bucket not found, looking for alternatives...');
+        
         // Если 'cards' не существует, используем 'public'
         const publicBucket = buckets?.find(bucket => bucket.name === 'public');
         if (publicBucket) {
           bucketName = 'public';
-          console.warn('Cards bucket not found, using public bucket');
+          console.warn('Using public bucket as fallback');
         } else {
-          addNotification('Bucket для карточек не найден. Обратитесь к администратору.', 'error');
-          return null;
+          // Если нет ни 'cards', ни 'public', попробуем первый доступный bucket
+          if (buckets && buckets.length > 0) {
+            bucketName = buckets[0].name;
+            console.warn(`Using first available bucket: ${bucketName}`);
+          } else {
+            console.error('No buckets found at all!');
+            
+            // Попробуем создать bucket 'cards' через API
+            try {
+              console.log('Attempting to create cards bucket...');
+              const { data: createData, error: createError } = await supabase
+                .from('storage.buckets')
+                .insert({
+                  id: 'cards',
+                  name: 'cards',
+                  public: true,
+                  file_size_limit: 5242880,
+                  allowed_mime_types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+                });
+                
+              if (createError) {
+                console.error('Failed to create bucket:', createError);
+                addNotification('Не удалось создать bucket для карточек. Обратитесь к администратору.', 'error');
+                return null;
+              }
+              
+              console.log('Successfully created cards bucket');
+              bucketName = 'cards';
+            } catch (apiError) {
+              console.error('API creation failed:', apiError);
+              addNotification('В хранилище не найдено ни одного bucket\'а. Обратитесь к администратору.', 'error');
+              return null;
+            }
+          }
         }
       }
       
