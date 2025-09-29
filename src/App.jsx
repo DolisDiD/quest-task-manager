@@ -671,8 +671,33 @@ const QuestTaskManager = () => {
 
   const uploadCardImage = async (cardId, file, packId = null) => {
     try {
-      let bucketName = 'cards'; // По умолчанию используем общий bucket
+      // Сначала проверяем, какие bucket'ы доступны
+      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+      
+      if (bucketError) {
+        console.error('Error checking buckets:', bucketError);
+        addNotification('Ошибка проверки хранилища: ' + bucketError.message, 'error');
+        return null;
+      }
+      
+      console.log('Available buckets:', buckets);
+      
+      let bucketName = 'cards'; // По умолчанию используем 'cards'
       let path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
+      
+      // Проверяем, существует ли bucket 'cards'
+      const cardsBucket = buckets?.find(bucket => bucket.name === 'cards');
+      if (!cardsBucket) {
+        // Если 'cards' не существует, используем 'public'
+        const publicBucket = buckets?.find(bucket => bucket.name === 'public');
+        if (publicBucket) {
+          bucketName = 'public';
+          console.warn('Cards bucket not found, using public bucket');
+        } else {
+          addNotification('Bucket для карточек не найден. Обратитесь к администратору.', 'error');
+          return null;
+        }
+      }
       
       // Если указан packId, создаем папку для пользователя
       if (packId && user?.id) {
@@ -683,7 +708,7 @@ const QuestTaskManager = () => {
           .single();
           
         if (pack?.owner_id) {
-          // Используем папку пользователя в общем bucket'е
+          // Используем папку пользователя в выбранном bucket'е
           path = `users/${pack.owner_id}/cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
         }
       }
