@@ -129,113 +129,144 @@ const AdminPanel = ({ userId }) => {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Заголовок */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
-          <Crown className="w-6 h-6 text-purple-500" />
-          <span>Админ-панель</span>
-        </h2>
-        <p className="text-gray-600 mt-1">
-          Управление пользователями и кодами приглашений
-        </p>
-      </div>
-
-      {/* Статистика */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <Users className="w-5 h-5 text-blue-600" />
-            <span className="font-medium text-blue-900">Всего пользователей</span>
-          </div>
-          <p className="text-2xl font-bold text-blue-800 mt-2">
-            {allUsers.length}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Заголовок */}
+        <div>
+          <h2 className="text-3xl font-bold text-white flex items-center space-x-3">
+            <Crown className="w-8 h-8 text-purple-400" />
+            <span>Админ-панель</span>
+          </h2>
+          <p className="text-gray-300 mt-2">
+            Управление пользователями и кодами приглашений
           </p>
         </div>
 
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <Shield className="w-5 h-5 text-green-600" />
-            <span className="font-medium text-green-900">Активные коды</span>
-          </div>
-          <p className="text-2xl font-bold text-green-800 mt-2">
-            {allCodes.filter(code => code.is_active && !code.used_by).length}
-          </p>
-        </div>
-
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <Crown className="w-5 h-5 text-yellow-600" />
-            <span className="font-medium text-yellow-900">Архимаги</span>
-          </div>
-          <p className="text-2xl font-bold text-yellow-800 mt-2">
-            {allUsers.filter(user => user.role_type === 'archimage').length}
-          </p>
-        </div>
-      </div>
-
-      {/* Управление кодами */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Управление кодами</h3>
-          <button
-            onClick={createSubscriptionCode}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Создать код подписки</span>
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {allCodes.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Shield className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>Коды приглашений не найдены</p>
+        {/* Статистика */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-400/30 rounded-xl p-6 backdrop-blur-sm">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-blue-500/20 rounded-lg">
+                <Users className="w-6 h-6 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-blue-300 text-sm font-medium">Всего пользователей</p>
+                <p className="text-2xl font-bold text-white">{allUsers.length}</p>
+              </div>
             </div>
-          ) : (
-            allCodes.map((code) => (
-              <div
-                key={code.id}
-                className={`border rounded-lg p-4 ${
-                  code.is_active && !code.used_by
-                    ? 'border-green-200 bg-green-50'
-                    : 'border-red-200 bg-red-50'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {getRoleIcon(code.role_type)}
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono text-lg font-bold">
-                          {code.code}
-                        </span>
-                        {copiedCode === code.code && (
-                          <Check className="w-4 h-4 text-green-500" />
-                        )}
+          </div>
+
+          <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-400/30 rounded-xl p-6 backdrop-blur-sm">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-green-500/20 rounded-lg">
+                <Shield className="w-6 h-6 text-green-400" />
+              </div>
+              <div>
+                <p className="text-green-300 text-sm font-medium">Активные коды</p>
+                <p className="text-2xl font-bold text-white">{allCodes.filter(code => code.is_active && !code.used_by).length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border border-yellow-400/30 rounded-xl p-6 backdrop-blur-sm">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-yellow-500/20 rounded-lg">
+                <Crown className="w-6 h-6 text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-yellow-300 text-sm font-medium">Архимаги</p>
+                <p className="text-2xl font-bold text-white">{allUsers.filter(user => user.role_type === 'archimage').length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-400/30 rounded-xl p-6 backdrop-blur-sm">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-purple-500/20 rounded-lg">
+                <User className="w-6 h-6 text-purple-400" />
+              </div>
+              <div>
+                <p className="text-purple-300 text-sm font-medium">Исследователи</p>
+                <p className="text-2xl font-bold text-white">{allUsers.filter(user => user.role_type === 'explorer').length}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Управление кодами */}
+        <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-xl p-6 backdrop-blur-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+              <Shield className="w-5 h-5 text-blue-400" />
+              <span>Управление кодами</span>
+            </h3>
+            <button
+              onClick={createSubscriptionCode}
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Создать код подписки</span>
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {allCodes.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-700/50 rounded-full flex items-center justify-center">
+                  <Shield className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-300 text-lg">Коды приглашений не найдены</p>
+              </div>
+            ) : (
+              allCodes.map((code) => (
+                <div
+                  key={code.id}
+                  className={`border rounded-xl p-6 transition-all duration-200 ${
+                    code.is_active && !code.used_by
+                      ? 'border-green-400/30 bg-gradient-to-r from-green-500/10 to-green-600/10 hover:from-green-500/20 hover:to-green-600/20'
+                      : code.used_by
+                      ? 'border-blue-400/30 bg-gradient-to-r from-blue-500/10 to-blue-600/10'
+                      : 'border-red-400/30 bg-gradient-to-r from-red-500/10 to-red-600/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 bg-gray-700/50 rounded-lg">
+                        {getRoleIcon(code.role_type)}
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                        <span>Создан: {formatDate(code.created_at)}</span>
-                        <span>Истекает: {formatDate(code.expires_at)}</span>
-                        {code.used_by && (
-                          <span className="text-green-600">
-                            Использован: {formatDate(code.used_at)}
+                      <div>
+                        <div className="flex items-center space-x-3">
+                          <span className="font-mono text-xl font-bold text-white bg-gray-800/50 px-3 py-1 rounded-lg">
+                            {code.code}
                           </span>
-                        )}
+                          {copiedCode === code.code && (
+                            <div className="flex items-center space-x-1 text-green-400">
+                              <Check className="w-4 h-4" />
+                              <span className="text-sm">Скопировано!</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-6 text-sm text-gray-300 mt-2">
+                          <span>Создан: {formatDate(code.created_at)}</span>
+                          <span>Истекает: {formatDate(code.expires_at)}</span>
+                          {code.used_by && (
+                            <span className="text-green-400">
+                              Использован: {formatDate(code.used_at)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => copyToClipboard(code.code)}
-                      className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                      title="Копировать код"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => copyToClipboard(code.code)}
+                        className="p-3 text-gray-300 hover:text-blue-400 hover:bg-blue-500/20 rounded-lg transition-all duration-200"
+                        title="Копировать код"
+                      >
+                        <Copy className="w-5 h-5" />
+                      </button>
+                    </div>
                 </div>
               </div>
             ))
@@ -243,59 +274,67 @@ const AdminPanel = ({ userId }) => {
         </div>
       </div>
 
-      {/* Список пользователей */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Пользователи</h3>
+        {/* Список пользователей */}
+        <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-xl p-6 backdrop-blur-sm">
+          <h3 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
+            <Users className="w-5 h-5 text-blue-400" />
+            <span>Пользователи</span>
+          </h3>
         
-        <div className="space-y-3">
-          {allUsers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>Пользователи не найдены</p>
-            </div>
-          ) : (
-            allUsers.map((user) => (
-              <div
-                key={user.id}
-                className="border border-gray-200 rounded-lg p-4"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {getRoleIcon(user.role_type)}
-                    <div>
-                      <div className="font-medium">
-                        Пользователь ID: {user.user_id}
+          <div className="space-y-4">
+            {allUsers.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-700/50 rounded-full flex items-center justify-center">
+                  <Users className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-300 text-lg">Пользователи не найдены</p>
+              </div>
+            ) : (
+              allUsers.map((user) => (
+                <div
+                  key={user.id}
+                  className="border border-gray-600/30 rounded-xl p-6 bg-gradient-to-r from-gray-700/20 to-gray-800/20 hover:from-gray-700/30 hover:to-gray-800/30 transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 bg-gray-700/50 rounded-lg">
+                        {getRoleIcon(user.role_type)}
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                        <span className="flex items-center space-x-1">
-                          <Shield className="w-3 h-3" />
-                          <span>{getRoleName(user.role_type)}</span>
-                        </span>
-                        <span>
-                          Зарегистрирован: {formatDate(user.created_at)}
-                        </span>
-                        {user.expires_at && (
-                          <span>
-                            Истекает: {formatDate(user.expires_at)}
+                      <div>
+                        <div className="font-medium text-white">
+                          Пользователь ID: {user.user_id}
+                        </div>
+                        <div className="flex items-center space-x-6 text-sm text-gray-300 mt-2">
+                          <span className="flex items-center space-x-2">
+                            <Shield className="w-4 h-4" />
+                            <span>{getRoleName(user.role_type)}</span>
                           </span>
-                        )}
+                          <span>
+                            Зарегистрирован: {formatDate(user.created_at)}
+                          </span>
+                          {user.expires_at && (
+                            <span>
+                              Истекает: {formatDate(user.expires_at)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.is_active
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {user.is_active ? 'Активен' : 'Неактивен'}
-                    </span>
-                  </div>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        user.is_active
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                          : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      }`}>
+                        {user.is_active ? 'Активен' : 'Неактивен'}
+                      </span>
+                    </div>
                 </div>
               </div>
             ))
           )}
+          </div>
         </div>
       </div>
     </div>

@@ -63,25 +63,27 @@ const ActivateCodeModal = ({ isOpen, onClose, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold flex items-center space-x-2">
-            <Shield className="w-5 h-5 text-blue-500" />
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold text-white flex items-center space-x-3">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <Shield className="w-6 h-6 text-blue-400" />
+            </div>
             <span>Активация кода приглашения</span>
           </h3>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-white hover:bg-gray-700/50 p-2 rounded-lg transition-all duration-200"
             disabled={isActivating}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-3">
               Код приглашения
             </label>
             <input
@@ -89,46 +91,52 @@ const ActivateCodeModal = ({ isOpen, onClose, onSuccess }) => {
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="Введите код приглашения"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-center text-lg tracking-wider"
+              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-center text-xl tracking-wider text-white"
               disabled={isActivating}
             />
           </div>
 
           {/* Сообщения об ошибках */}
           {error && (
-            <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <span className="text-red-700 text-sm">{error}</span>
+            <div className="flex items-center space-x-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <div className="p-2 bg-red-500/20 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+              </div>
+              <span className="text-red-300 text-sm">{error}</span>
             </div>
           )}
 
           {/* Сообщения об успехе */}
           {success && (
-            <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-              <span className="text-green-700 text-sm">{success}</span>
+            <div className="flex items-center space-x-3 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
+              </div>
+              <span className="text-green-300 text-sm">{success}</span>
             </div>
           )}
 
           {/* Информация о кодах */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-start space-x-2">
-              <Shield className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
-                <p className="font-medium mb-1">Что дают коды приглашений:</p>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Shield className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+              </div>
+              <div className="text-sm text-blue-300">
+                <p className="font-medium mb-2 text-blue-200">Что дают коды приглашений:</p>
                 <ul className="space-y-1 text-xs">
-                  <li>• <strong>Исследователь:</strong> базовый доступ к приложению</li>
-                  <li>• <strong>Архимаг:</strong> создание пачек карточек и кодов приглашений</li>
+                  <li>• <strong className="text-blue-100">Исследователь:</strong> базовый доступ к приложению</li>
+                  <li>• <strong className="text-blue-100">Архимаг:</strong> создание пачек карточек и кодов приглашений</li>
                 </ul>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 mt-6">
+        <div className="flex justify-end space-x-3 mt-8">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            className="px-6 py-3 text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200"
             disabled={isActivating}
           >
             Отмена
@@ -136,7 +144,7 @@ const ActivateCodeModal = ({ isOpen, onClose, onSuccess }) => {
           <button
             onClick={handleActivate}
             disabled={isActivating || !code.trim()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg transition-all duration-200 disabled:opacity-50 flex items-center space-x-2"
           >
             {isActivating && (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
