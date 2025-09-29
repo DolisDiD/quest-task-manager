@@ -610,52 +610,92 @@ const QuestTaskManager = () => {
     }
   };
 
-  const uploadCardImage = async (cardId, file) => {
+  // Функция для создания bucket'а для пользователя
+  const createUserBucket = async (userId) => {
     try {
-      // Сначала проверяем, существует ли bucket 'cards'
+      const bucketName = `user-${userId}-cards`;
+      
+      // Проверяем, существует ли уже bucket для этого пользователя
       const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
       
       if (bucketError) {
         console.error('Error checking buckets:', bucketError);
-        addNotification('Ошибка проверки хранилища: ' + bucketError.message, 'error');
-        return null;
+        return { success: false, error: bucketError.message };
       }
       
-      const cardsBucket = buckets?.find(bucket => bucket.name === 'cards');
+      const existingBucket = buckets?.find(bucket => bucket.name === bucketName);
+      if (existingBucket) {
+        return { success: true, bucketName };
+      }
       
-      if (!cardsBucket) {
-        // Если bucket не существует, пробуем использовать 'public' или создаем временное решение
-        console.warn('Cards bucket not found, trying alternative approach');
+      // Пробуем создать bucket через RPC функцию
+      const { data: rpcData, error: rpcError } = await supabase.rpc('create_user_bucket', {
+        bucket_name: bucketName,
+        user_id: userId
+      });
+      
+      if (rpcError) {
+        console.warn('RPC function failed, trying alternative approach:', rpcError);
         
-        // Пробуем использовать bucket 'public' если он существует
-        const publicBucket = buckets?.find(bucket => bucket.name === 'public');
-        if (publicBucket) {
-          const path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
-          const { error: upErr } = await supabase.storage.from('public').upload(path, file, { upsert: true });
-          
-          if (upErr) {
-            addNotification('Ошибка загрузки: ' + upErr.message, 'error');
-            return null;
+        // Альтернативный подход: создаем bucket через прямой API
+        // Это может не работать из-за ограничений безопасности, но попробуем
+        try {
+          const { data: createData, error: createError } = await supabase
+            .from('storage.buckets')
+            .insert({
+              id: bucketName,
+              name: bucketName,
+              public: true,
+              file_size_limit: 5242880,
+              allowed_mime_types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+            });
+            
+          if (createError) {
+            console.error('Direct API creation failed:', createError);
+            return { success: false, error: createError.message };
           }
           
-          const { data: pub } = supabase.storage.from('public').getPublicUrl(path);
-          return pub?.publicUrl;
-        } else {
-          addNotification('Bucket для карточек не найден. Обратитесь к администратору.', 'error');
-          return null;
+          return { success: true, bucketName };
+        } catch (apiError) {
+          console.error('API creation failed:', apiError);
+          return { success: false, error: 'Не удалось создать bucket. Обратитесь к администратору.' };
         }
       }
       
-      // Если bucket 'cards' существует, используем его
-      const path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
-      const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
+      return { success: true, bucketName };
+    } catch (e) {
+      console.error('❌ Error in createUserBucket:', e);
+      return { success: false, error: e.message };
+    }
+  };
+
+  const uploadCardImage = async (cardId, file, packId = null) => {
+    try {
+      let bucketName = 'cards'; // По умолчанию используем общий bucket
+      let path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
+      
+      // Если указан packId, создаем папку для пользователя
+      if (packId && user?.id) {
+        const { data: pack } = await supabase
+          .from('card_packs')
+          .select('owner_id')
+          .eq('id', packId)
+          .single();
+          
+        if (pack?.owner_id) {
+          // Используем папку пользователя в общем bucket'е
+          path = `users/${pack.owner_id}/cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
+        }
+      }
+      
+      const { error: upErr } = await supabase.storage.from(bucketName).upload(path, file, { upsert: true });
       
       if (upErr) {
         addNotification('Ошибка загрузки: ' + upErr.message, 'error');
         return null;
       }
       
-      const { data: pub } = supabase.storage.from('cards').getPublicUrl(path);
+      const { data: pub } = supabase.storage.from(bucketName).getPublicUrl(path);
       const publicUrl = pub?.publicUrl;
       
       if (!publicUrl) {
@@ -1196,7 +1236,7 @@ const QuestTaskManager = () => {
     };
 
     const handleImageUpload = async (cardId, file) => {
-      const imageUrl = await uploadCardImage(cardId, file);
+      const imageUrl = await uploadCardImage(cardId, file, editingPackId);
       if (imageUrl) {
         await updateCard(cardId, { image_url: imageUrl });
         await loadPackCards(editingPackId);
