@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
   Target, Zap, Search, Filter, Calendar, User, Users, Gift,
@@ -27,26 +28,52 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Default built-in card pack for personal quests
 const defaultPackId = 'a0384274-e165-4536-9296-c6ddc6633bce';
 
-// Simple notification system
+// Modern notification system with animations
 const NotificationSystem = ({ notifications, onClose }) => {
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2">
       {notifications.map(n => (
-        <div
+        <motion.div
           key={n.id}
-          className={`px-4 py-2 rounded shadow-lg border ${
-            n.type === 'success' ? 'bg-green-700/90 border-green-400 text-white' :
-            n.type === 'error' ? 'bg-red-700/90 border-red-400 text-white' :
-            'bg-gray-700/90 border-gray-500 text-white'
-          }`}
+          initial={{ opacity: 0, x: 300, scale: 0.8 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: 300, scale: 0.8 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 300, 
+            damping: 30 
+          }}
+          className={`
+            px-4 py-3 rounded-xl shadow-lg border backdrop-blur-sm
+            flex items-center justify-between max-w-sm
+            ${n.type === 'success' ? 'bg-success-500/10 border-success-500/30 text-success-100' :
+              n.type === 'error' ? 'bg-error-500/10 border-error-500/30 text-error-100' :
+              n.type === 'warning' ? 'bg-warning-500/10 border-warning-500/30 text-warning-100' :
+              'bg-accent-500/10 border-accent-500/30 text-accent-100'
+            }
+            hover:shadow-xl transition-all duration-300
+          `}
         >
-          <div className="flex items-start space-x-2">
-            <div className="flex-1 text-sm">{n.message}</div>
-            <button className="text-white/80 hover:text-white" onClick={() => onClose(n.id)}>
-              <X className="w-4 h-4" />
-            </button>
+          <div className="flex items-center space-x-3">
+            <div className={`
+              w-2 h-2 rounded-full
+              ${n.type === 'success' ? 'bg-success-500' :
+                n.type === 'error' ? 'bg-error-500' :
+                n.type === 'warning' ? 'bg-warning-500' :
+                'bg-accent-500'
+              }
+            `} />
+            <span className="text-sm font-medium">{n.message}</span>
           </div>
-        </div>
+          <motion.button
+            onClick={() => onClose(n.id)}
+            className="ml-2 p-1 rounded-lg hover:bg-white/10 transition-colors"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
+            <X className="w-4 h-4 text-gray-400 hover:text-white" />
+          </motion.button>
+        </motion.div>
       ))}
     </div>
   );
@@ -3801,9 +3828,21 @@ return (
     </div>
 
     {/* Achievements Modal */}
-    {showAchievements && (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-600 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+    <AnimatePresence>
+      {showAchievements && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 50 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="glass-card border-glass-border max-w-4xl w-full max-h-[80vh] overflow-hidden"
+          >
           <div className="flex items-center justify-between p-6 border-b border-gray-700">
             <div className="flex items-center space-x-3">
               <Award className="w-6 h-6 text-yellow-400" />
@@ -3819,14 +3858,17 @@ return (
           
           <div className="p-6 overflow-y-auto max-h-[60vh]" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 #1F2937' }}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">
-              {achievements.map(achievement => (
-                <div
+              {achievements.map((achievement, index) => (
+                <motion.div
                   key={achievement.id}
-                  className={`bg-gradient-to-r ${
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className={`glass-card ${
                     achievement.unlocked
-                      ? 'from-yellow-900/20 to-orange-900/20 border-yellow-400/30'
-                      : 'from-gray-700/30 to-gray-800/30 border-gray-600'
-                  } border rounded-lg p-4`}
+                      ? 'border-success-500/30 shadow-glow-success'
+                      : 'border-gray-600'
+                  } p-4`}
                 >
                   <div className="flex items-start space-x-3">
                     <div className={`${achievement.unlocked ? '' : 'opacity-50 grayscale'}`}>
@@ -3857,13 +3899,14 @@ return (
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
-        </div>
-      </div>
-    )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
 
     {/* Модальное окно для активации кода приглашения */}
     <ActivateCodeModal
