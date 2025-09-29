@@ -703,33 +703,8 @@ const QuestTaskManager = () => {
             console.warn(`Using first available bucket: ${bucketName}`);
           } else {
             console.error('No buckets found at all!');
-            
-            // Попробуем создать bucket 'cards' через API
-            try {
-              console.log('Attempting to create cards bucket...');
-              const { data: createData, error: createError } = await supabase
-                .from('storage.buckets')
-                .insert({
-                  id: 'cards',
-                  name: 'cards',
-                  public: true,
-                  file_size_limit: 5242880,
-                  allowed_mime_types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-                });
-                
-              if (createError) {
-                console.error('Failed to create bucket:', createError);
-                addNotification('Не удалось создать bucket для карточек. Обратитесь к администратору.', 'error');
-                return null;
-              }
-              
-              console.log('Successfully created cards bucket');
-              bucketName = 'cards';
-            } catch (apiError) {
-              console.error('API creation failed:', apiError);
-              addNotification('В хранилище не найдено ни одного bucket\'а. Обратитесь к администратору.', 'error');
-              return null;
-            }
+            addNotification('В Supabase Storage не настроено ни одного bucket\'а. Создайте bucket "cards" в Supabase Dashboard. См. файл CREATE_BUCKET_STEP_BY_STEP.md', 'error');
+            return null;
           }
         }
       }
