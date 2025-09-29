@@ -4,6 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import BottomSheet from './components/UI/BottomSheet';
 import { XPProgressRing } from './components/UI/ProgressRing';
 import { QuestStatusBadge } from './components/UI/StatusBadge';
+import PageTransition from './components/UI/PageTransition';
+import { SkeletonQuestList } from './components/UI/SkeletonList';
+import { FadeIn, StaggeredList, StaggeredItem } from './components/UI/MicroAnimations';
+import { Heading1, Heading2, Heading3, Paragraph, GradientText } from './components/UI/Typography';
 import { 
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
   Target, Zap, Search, Filter, Calendar, User, Users, Gift,
@@ -2169,6 +2173,7 @@ const MyQuestsTab = () => {
   const [localSortBy, setLocalSortBy] = useState('dueDate');
   const [localSortOrder, setLocalSortOrder] = useState('asc');
   const [localShowNewQuest, setLocalShowNewQuest] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   // Sub-tabs for my quests
   const [activeMyQuestsSubtab, setActiveMyQuestsSubtab] = useState('active');
   const [hideCompletedMyQuests, setHideCompletedMyQuests] = useState(false);
@@ -2647,11 +2652,17 @@ const MyQuestsTab = () => {
             <div className="text-gray-500">Попробуйте изменить параметры поиска или фильтры</div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filteredAndSortedQuests.map(quest => (
-              <QuestCard key={quest.id} quest={quest} />
-            ))}
-          </div>
+          <StaggeredList>
+            {isLoading ? (
+              <SkeletonQuestList count={5} />
+            ) : (
+              filteredAndSortedQuests.map((quest, index) => (
+                <StaggeredItem key={quest.id}>
+                  <QuestCard quest={quest} />
+                </StaggeredItem>
+              ))
+            )}
+          </StaggeredList>
         )}
       </div>
     </div>
@@ -3624,11 +3635,12 @@ return (
 
     {/* Main Content */}
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      {activeTab === 'dashboard' && (
+      <PageTransition activeTab={activeTab}>
+        {activeTab === 'dashboard' && (
         <div className="space-y-6">
           
           <div className="glass-card p-4 sm:p-6">
-            <h3 className="text-xl font-bold mb-4 gradient-text">Быстрые действия</h3>
+            <Heading3 animate={true} className="mb-4">Быстрые действия</Heading3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <button
                 onClick={() => setActiveTab('my-quests')}
@@ -3862,9 +3874,10 @@ return (
       {activeTab === 'friends' && <FriendsTab />}
       {activeTab === 'assigned-quests' && <AssignedQuestsTab />}
       
-      {/* Новые вкладки для системы ролей */}
-      {activeTab === 'invitation-codes' && <InvitationCodesTab userId={user?.id} />}
-      {activeTab === 'admin' && <AdminPanel userId={user?.id} />}
+        {/* Новые вкладки для системы ролей */}
+        {activeTab === 'invitation-codes' && <InvitationCodesTab userId={user?.id} />}
+        {activeTab === 'admin' && <AdminPanel userId={user?.id} />}
+      </PageTransition>
     </div>
 
     {/* Achievements Modal */}
