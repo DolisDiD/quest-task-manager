@@ -615,26 +615,34 @@ const QuestTaskManager = () => {
     try {
       console.log('Testing Storage connection...');
       
-      // Тест 1: Проверяем listBuckets
-      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-      console.log('listBuckets result:', { buckets, bucketError });
-      
-      // Тест 2: Прямой доступ к bucket 'cards'
+      // Тест 1: Прямой доступ к bucket 'cards'
+      console.log('Testing cards bucket access...');
       const { data: listData, error: listError } = await supabase.storage.from('cards').list('', { limit: 1 });
-      console.log('Direct cards bucket access:', { listData, listError });
+      console.log('Cards bucket list result:', { listData, listError });
       
-      // Тест 3: Проверяем права на загрузку
+      // Тест 2: Проверяем права на загрузку в 'cards'
+      console.log('Testing upload to cards bucket...');
       const testFile = new File(['test'], 'test.txt', { type: 'text/plain' });
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('cards')
         .upload('test/test.txt', testFile, { upsert: true });
-      console.log('Upload test result:', { uploadData, uploadError });
+      console.log('Cards bucket upload result:', { uploadData, uploadError });
+      
+      // Тест 3: Проверяем доступ к 'public' bucket
+      console.log('Testing public bucket access...');
+      const { data: publicListData, error: publicListError } = await supabase.storage.from('public').list('', { limit: 1 });
+      console.log('Public bucket list result:', { publicListData, publicListError });
+      
+      // Тест 4: Проверяем загрузку в 'public'
+      console.log('Testing upload to public bucket...');
+      const { data: publicUploadData, error: publicUploadError } = await supabase.storage
+        .from('public')
+        .upload('test/public-test.txt', testFile, { upsert: true });
+      console.log('Public bucket upload result:', { publicUploadData, publicUploadError });
       
       return {
-        buckets: buckets || [],
-        bucketError,
-        listError,
-        uploadError
+        cardsBucket: { list: listData, listError, upload: uploadData, uploadError },
+        publicBucket: { list: publicListData, listError: publicListError, upload: publicUploadData, uploadError: publicUploadError }
       };
     } catch (e) {
       console.error('Storage test failed:', e);
@@ -703,77 +711,10 @@ const QuestTaskManager = () => {
 
   const uploadCardImage = async (cardId, file, packId = null) => {
     try {
-      // Сначала проверяем, какие bucket'ы доступны
-      console.log('Checking buckets...');
-      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+      console.log('Starting image upload...');
       
-      console.log('Bucket check result:', { buckets, bucketError });
-      
-      if (bucketError) {
-        console.error('Error checking buckets:', bucketError);
-        console.error('Error details:', {
-          message: bucketError.message,
-          details: bucketError.details,
-          hint: bucketError.hint,
-          code: bucketError.code
-        });
-        
-        // Попробуем альтернативный способ - проверить bucket напрямую
-        console.log('Trying direct bucket access...');
-        try {
-          const { data: testData, error: testError } = await supabase.storage.from('cards').list('', { limit: 1 });
-          console.log('Direct access test:', { testData, testError });
-          
-          if (!testError) {
-            console.log('Cards bucket is accessible directly!');
-            // Если прямой доступ работает, используем bucket 'cards'
-            const path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
-            const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
-            
-            if (upErr) {
-              addNotification('Ошибка загрузки: ' + upErr.message, 'error');
-              return null;
-            }
-            
-            const { data: pub } = supabase.storage.from('cards').getPublicUrl(path);
-            return pub?.publicUrl;
-          }
-        } catch (directError) {
-          console.error('Direct access failed:', directError);
-        }
-        
-        addNotification('Ошибка проверки хранилища: ' + bucketError.message, 'error');
-        return null;
-      }
-      
-      console.log('Available buckets:', buckets);
-      console.log('Buckets count:', buckets?.length || 0);
-      
-      let bucketName = 'cards'; // По умолчанию используем 'cards'
+      // Определяем путь для загрузки
       let path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
-      
-      // Проверяем, существует ли bucket 'cards'
-      const cardsBucket = buckets?.find(bucket => bucket.name === 'cards');
-      if (!cardsBucket) {
-        console.warn('Cards bucket not found, looking for alternatives...');
-        
-        // Если 'cards' не существует, используем 'public'
-        const publicBucket = buckets?.find(bucket => bucket.name === 'public');
-        if (publicBucket) {
-          bucketName = 'public';
-          console.warn('Using public bucket as fallback');
-        } else {
-          // Если нет ни 'cards', ни 'public', попробуем первый доступный bucket
-          if (buckets && buckets.length > 0) {
-            bucketName = buckets[0].name;
-            console.warn(`Using first available bucket: ${bucketName}`);
-          } else {
-            console.error('No buckets found at all!');
-            addNotification('В Supabase Storage не настроено ни одного bucket\'а. Создайте bucket "cards" в Supabase Dashboard. См. файл CREATE_BUCKET_STEP_BY_STEP.md', 'error');
-            return null;
-          }
-        }
-      }
       
       // Если указан packId, создаем папку для пользователя
       if (packId && user?.id) {
@@ -784,19 +725,44 @@ const QuestTaskManager = () => {
           .single();
           
         if (pack?.owner_id) {
-          // Используем папку пользователя в выбранном bucket'е
+          // Используем папку пользователя в bucket'е 'cards'
           path = `users/${pack.owner_id}/cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
         }
       }
       
-      const { error: upErr } = await supabase.storage.from(bucketName).upload(path, file, { upsert: true });
+      console.log('Uploading to path:', path);
+      
+      // Пробуем загрузить в bucket 'cards' напрямую
+      const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
       
       if (upErr) {
-        addNotification('Ошибка загрузки: ' + upErr.message, 'error');
-        return null;
+        console.error('Upload error:', upErr);
+        
+        // Если не удалось загрузить в 'cards', пробуем 'public'
+        console.log('Trying fallback to public bucket...');
+        const { error: fallbackErr } = await supabase.storage.from('public').upload(path, file, { upsert: true });
+        
+        if (fallbackErr) {
+          console.error('Fallback upload error:', fallbackErr);
+          addNotification('Ошибка загрузки: ' + fallbackErr.message, 'error');
+          return null;
+        }
+        
+        // Получаем URL из public bucket
+        const { data: pub } = supabase.storage.from('public').getPublicUrl(path);
+        const publicUrl = pub?.publicUrl;
+        
+        if (!publicUrl) {
+          addNotification('Не удалось получить public URL', 'error');
+          return null;
+        }
+        
+        console.log('Successfully uploaded to public bucket');
+        return publicUrl;
       }
       
-      const { data: pub } = supabase.storage.from(bucketName).getPublicUrl(path);
+      // Получаем URL из cards bucket
+      const { data: pub } = supabase.storage.from('cards').getPublicUrl(path);
       const publicUrl = pub?.publicUrl;
       
       if (!publicUrl) {
@@ -804,6 +770,7 @@ const QuestTaskManager = () => {
         return null;
       }
       
+      console.log('Successfully uploaded to cards bucket');
       return publicUrl;
     } catch (e) {
       console.error('❌ Error in uploadCardImage:', e);
