@@ -29,11 +29,7 @@ const AdminPanel = ({ userId }) => {
       setLoading(true);
       const { data, error } = await supabase
         .from('user_roles')
-        .select(`
-          *,
-          user:user_id(id, email, created_at),
-          role_limits(*)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -51,11 +47,7 @@ const AdminPanel = ({ userId }) => {
     try {
       const { data, error } = await supabase
         .from('invitation_codes')
-        .select(`
-          *,
-          created_by_user:created_by(id, email),
-          used_by_user:used_by(id, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -226,9 +218,9 @@ const AdminPanel = ({ userId }) => {
                       <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
                         <span>Создан: {formatDate(code.created_at)}</span>
                         <span>Истекает: {formatDate(code.expires_at)}</span>
-                        {code.used_by_user && (
+                        {code.used_by && (
                           <span className="text-green-600">
-                            Использован: {code.used_by_user.email}
+                            Использован: {formatDate(code.used_at)}
                           </span>
                         )}
                       </div>
@@ -272,7 +264,7 @@ const AdminPanel = ({ userId }) => {
                     {getRoleIcon(user.role_type)}
                     <div>
                       <div className="font-medium">
-                        {user.user?.email || 'Неизвестный пользователь'}
+                        Пользователь ID: {user.user_id}
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
                         <span className="flex items-center space-x-1">

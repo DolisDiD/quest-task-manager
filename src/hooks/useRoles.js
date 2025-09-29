@@ -21,10 +21,7 @@ export const useRoles = (userId) => {
       // Получаем активную роль пользователя
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
-        .select(`
-          *,
-          role_limits!inner(*)
-        `)
+        .select('*')
         .eq('user_id', userId)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
@@ -37,7 +34,14 @@ export const useRoles = (userId) => {
 
       if (roleData) {
         setUserRole(roleData);
-        setRoleLimits(roleData.role_limits);
+        // Загружаем лимиты роли отдельно
+        const { data: limitsData } = await supabase
+          .from('role_limits')
+          .select('*')
+          .eq('role_type', roleData.role_type)
+          .single();
+        
+        setRoleLimits(limitsData);
       } else {
         // Если роли нет, создаем роль исследователя по умолчанию
         const { data: defaultRole, error: defaultError } = await supabase
@@ -46,10 +50,7 @@ export const useRoles = (userId) => {
             user_id: userId,
             role_type: 'explorer'
           })
-          .select(`
-            *,
-            role_limits!inner(*)
-          `)
+          .select('*')
           .single();
 
         if (defaultError) {
@@ -57,7 +58,14 @@ export const useRoles = (userId) => {
         }
 
         setUserRole(defaultRole);
-        setRoleLimits(defaultRole.role_limits);
+        // Загружаем лимиты роли отдельно
+        const { data: limitsData } = await supabase
+          .from('role_limits')
+          .select('*')
+          .eq('role_type', 'explorer')
+          .single();
+        
+        setRoleLimits(limitsData);
       }
     } catch (err) {
       console.error('Error loading user role:', err);

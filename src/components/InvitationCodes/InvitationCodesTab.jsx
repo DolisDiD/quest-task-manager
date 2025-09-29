@@ -216,12 +216,12 @@ const InvitationCodesTab = ({ userId }) => {
               </div>
 
               {/* Информация об использовании */}
-              {code.used_by_user && (
+              {code.used_by && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <div className="flex items-center space-x-2 text-sm">
                     <User className="w-4 h-4 text-green-500" />
                     <span className="text-gray-600">
-                      Использован: {code.used_by_user.email} ({formatDate(code.used_at)})
+                      Использован: {formatDate(code.used_at)}
                     </span>
                   </div>
                 </div>

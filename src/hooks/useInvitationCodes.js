@@ -26,10 +26,7 @@ export const useInvitationCodes = (userId) => {
 
       const { data, error } = await supabase
         .from('invitation_codes')
-        .select(`
-          *,
-          used_by_user:used_by(id, email)
-        `)
+        .select('*')
         .eq('created_by', userId)
         .order('created_at', { ascending: false });
 
@@ -86,10 +83,7 @@ export const useInvitationCodes = (userId) => {
           expires_at: expiresAt.toISOString(),
           created_by: userId
         })
-        .select(`
-          *,
-          used_by_user:used_by(id, email)
-        `)
+        .select('*')
         .single();
 
       if (error) throw error;
