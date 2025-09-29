@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
+import BottomSheet from './components/UI/BottomSheet';
+import { XPProgressRing } from './components/UI/ProgressRing';
+import { QuestStatusBadge } from './components/UI/StatusBadge';
 import { 
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
   Target, Zap, Search, Filter, Calendar, User, Users, Gift,
@@ -1877,11 +1880,20 @@ const QuestTaskManager = () => {
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <div className="flex items-center space-x-2">
                 {typeIcons[quest.type]}
-                <span className={`text-xs px-2 py-1 rounded-full border ${difficultyColors[quest.difficulty]} bg-black/30`}>
-                  {quest.difficulty.toUpperCase()}
-                </span>
+                <QuestStatusBadge 
+                  difficulty={quest.difficulty} 
+                  completed={quest.completed}
+                />
               </div>
-              {quest.completed && <CheckCircle className="w-5 h-5 text-green-400" />}
+              {quest.completed && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="text-green-400"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                </motion.div>
+              )}
               {quest.assignedBy && (
                 <span className="text-xs text-blue-400">
                   От: {quest.assignedByName || getFriendById(quest.assignedBy)?.name || 'Неизвестно'}
@@ -3500,54 +3512,71 @@ return (
       </div>
     </div>
 
-    {/* Mobile Navigation Menu */}
-    {mobileMenuOpen && (
-      <div className="sm:hidden bg-gray-800/95 backdrop-blur-sm border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 py-2">
-          <div className="grid grid-cols-2 gap-2">
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-300 relative ${
-                    activeTab === tab.id
-                      ? 'glass text-primary-400 shadow-glow'
-                      : 'text-gray-400 hover:text-white hover:glass-hover'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-sm">{tab.label}</span>
-                  {tab.id === 'friends' && friendRequests.length > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      {friendRequests.length}
-                    </div>
-                  )}
-                  {tab.id === 'rewards' && rewards.pending.length > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      {rewards.pending.length}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-            
-            {/* Кнопка активации кода для всех пользователей */}
-            <button
-              onClick={() => setShowActivateCodeModal(true)}
-              className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-all bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border border-blue-500/30"
+    {/* Mobile Navigation Menu - Bottom Sheet */}
+    <BottomSheet
+      isOpen={mobileMenuOpen}
+      onClose={() => setMobileMenuOpen(false)}
+      title="Навигация"
+    >
+      <div className="p-4 space-y-2">
+        {tabs.map((tab, index) => {
+          const Icon = tab.icon;
+          return (
+            <motion.button
+              key={tab.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setMobileMenuOpen(false);
+              }}
+              className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 relative ${
+                activeTab === tab.id
+                  ? 'glass text-primary-400 shadow-glow'
+                  : 'text-gray-400 hover:text-white hover:glass-hover'
+              }`}
             >
-              <Shield className="w-4 h-4" />
-              <span className="text-sm">Активировать код</span>
-            </button>
-          </div>
-        </div>
+              <Icon className="w-5 h-5" />
+              <span className="text-base font-medium">{tab.label}</span>
+              {tab.id === 'friends' && friendRequests.length > 0 && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="ml-auto bg-error-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center"
+                >
+                  {friendRequests.length}
+                </motion.div>
+              )}
+              {tab.id === 'rewards' && rewards.pending.length > 0 && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="ml-auto bg-warning-500 text-black text-xs rounded-full w-6 h-6 flex items-center justify-center"
+                >
+                  {rewards.pending.length}
+                </motion.div>
+              )}
+            </motion.button>
+          );
+        })}
+            
+        {/* Кнопка активации кода для всех пользователей */}
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          onClick={() => {
+            setShowActivateCodeModal(true);
+            setMobileMenuOpen(false);
+          }}
+          className="flex items-center space-x-3 px-4 py-3 rounded-xl transition-all bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border border-blue-500/30"
+        >
+          <Shield className="w-5 h-5" />
+          <span className="text-base font-medium">Активировать код</span>
+        </motion.button>
       </div>
-    )}
+    </BottomSheet>
 
     {/* Desktop Navigation Tabs */}
     <div className="hidden sm:block bg-gray-800/30 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
@@ -3684,12 +3713,23 @@ return (
             </div>
 
             {!editingProfile ? (
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <div>{getAvatarIcon(currentUser.avatar)}</div>
-                  <div>
-                    <h3 className="text-xl font-bold">{currentUser.name}</h3>
-                    <div className="text-gray-400">Уровень {currentUser.level} • {currentUser.totalXp} XP</div>
+              <div className="space-y-6">
+                <div className="flex items-center space-x-6">
+                  <div className="flex-shrink-0">
+                    {getAvatarIcon(currentUser.avatar)}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold gradient-text">{currentUser.name}</h3>
+                    <div className="text-gray-400 mt-1">{currentUser.totalXp} XP</div>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <XPProgressRing 
+                      currentXP={currentUser.xp || 0}
+                      maxXP={currentUser.xpToNext || 100}
+                      level={currentUser.level || 1}
+                    />
+                  </div>
+                </div>
                     {userRole && (
                       <div className="flex items-center space-x-2 mt-1">
                         <Shield className="w-4 h-4 text-blue-400" />
