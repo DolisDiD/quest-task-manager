@@ -612,6 +612,41 @@ const QuestTaskManager = () => {
 
   const uploadCardImage = async (cardId, file) => {
     try {
+      // Сначала проверяем, существует ли bucket 'cards'
+      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+      
+      if (bucketError) {
+        console.error('Error checking buckets:', bucketError);
+        addNotification('Ошибка проверки хранилища: ' + bucketError.message, 'error');
+        return null;
+      }
+      
+      const cardsBucket = buckets?.find(bucket => bucket.name === 'cards');
+      
+      if (!cardsBucket) {
+        // Если bucket не существует, пробуем использовать 'public' или создаем временное решение
+        console.warn('Cards bucket not found, trying alternative approach');
+        
+        // Пробуем использовать bucket 'public' если он существует
+        const publicBucket = buckets?.find(bucket => bucket.name === 'public');
+        if (publicBucket) {
+          const path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
+          const { error: upErr } = await supabase.storage.from('public').upload(path, file, { upsert: true });
+          
+          if (upErr) {
+            addNotification('Ошибка загрузки: ' + upErr.message, 'error');
+            return null;
+          }
+          
+          const { data: pub } = supabase.storage.from('public').getPublicUrl(path);
+          return pub?.publicUrl;
+        } else {
+          addNotification('Bucket для карточек не найден. Обратитесь к администратору.', 'error');
+          return null;
+        }
+      }
+      
+      // Если bucket 'cards' существует, используем его
       const path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
       const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
       
