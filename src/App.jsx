@@ -3742,31 +3742,31 @@ return (
                     />
                   </div>
                 </div>
-                    {userRole && (
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Shield className="w-4 h-4 text-blue-400" />
-                        <span className="text-sm text-blue-400">
-                          {userRole.role_type === 'admin' ? 'Админ' : 
-                           userRole.role_type === 'archimage' ? 'Архимаг' : 
-                           userRole.role_type === 'explorer' ? 'Исследователь' : userRole.role_type}
-                        </span>
-                        {userRole?.role_type === 'admin' && (
-                          <button
-                            onClick={async () => {
-                              console.log('Running Storage test...');
-                              const result = await testStorageConnection();
-                              console.log('Storage test completed:', result);
-                              addNotification('Результат теста Storage в консоли', 'info');
-                            }}
-                            className="text-xs bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded transition-colors ml-2"
-                          >
-                            Тест Storage
-                          </button>
-                        )}
-                      </div>
+                {userRole && (
+                  <div className="flex items-center space-x-2 mt-1">
+                    <Shield className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm text-blue-400">
+                      {userRole.role_type === 'admin' ? 'Админ' : 
+                       userRole.role_type === 'archimage' ? 'Архимаг' : 
+                       userRole.role_type === 'explorer' ? 'Исследователь' : userRole.role_type}
+                    </span>
+                    {userRole?.role_type === 'admin' && (
+                      <button
+                        onClick={async () => {
+                          console.log('Running Storage test...');
+                          const result = await testStorageConnection();
+                          console.log('Storage test completed:', result);
+                          addNotification('Результат теста Storage в консоли', 'info');
+                        }}
+                        className="text-xs bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded transition-colors ml-2"
+                      >
+                        Тест Storage
+                      </button>
                     )}
                   </div>
-                </div>
+                )}
+              </div>
+            </div>
 
                 <div className="space-y-3 mt-6">
                   <div className="flex items-center space-x-3">
