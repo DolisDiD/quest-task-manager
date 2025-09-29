@@ -16,8 +16,12 @@ import ActivateCodeModal from './components/InvitationCodes/ActivateCodeModal';
 import AdminPanel from './components/Admin/AdminPanel';
 
 // 🔥 ВАШИ ДАННЫЕ SUPABASE:
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hqhaqtwxqawslwpjrojd.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxaGFxdHd4cWF3c2x3cGpyb2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyNDc5MjcsImV4cCI6MjA2NTgyMzkyN30.bNQxmic8Tju-bbCNRoAgbYZCMhPQRY_tPa4K-GHcZM4';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables. Please check your .env.local file.');
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 // Default built-in card pack for personal quests
