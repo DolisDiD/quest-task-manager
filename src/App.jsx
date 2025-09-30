@@ -8,6 +8,11 @@ import PageTransition from './components/UI/PageTransition';
 import { SkeletonQuestList } from './components/UI/SkeletonList';
 import { FadeIn, StaggeredList, StaggeredItem } from './components/UI/MicroAnimations';
 import { Heading1, Heading2, Heading3, Paragraph, GradientText } from './components/UI/Typography';
+import ErrorBoundary from './components/ErrorBoundary';
+// Импорты для валидации и оптимизации
+import { useFormValidation, validationSchemas, sanitizeInput, validateForm } from './utils/validation';
+import { useOptimizedState, useDebounce, useMemoizedCallback } from './hooks/useOptimizedState';
+import { measureAsyncPerformance, usePerformanceMonitor } from './utils/performanceMonitor';
 import { 
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
   Target, Zap, Search, Filter, Calendar, User, Users, Gift,
@@ -23,15 +28,8 @@ import InvitationCodesTab from './components/InvitationCodes/InvitationCodesTab'
 import ActivateCodeModal from './components/InvitationCodes/ActivateCodeModal';
 import AdminPanel from './components/Admin/AdminPanel';
 
-// 🔥 ВАШИ ДАННЫЕ SUPABASE:
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Импортируем Supabase клиент из lib
+import { supabase } from './lib/supabase';
 // Default built-in card pack for personal quests
 const defaultPackId = 'a0384274-e165-4536-9296-c6ddc6633bce';
 
@@ -144,16 +142,16 @@ const QuestTaskManager = () => {
   const [friends, setFriends] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
-  const [quests, setQuests] = useState([]);
-  const [rewards, setRewards] = useState({pending: [], claimed: []});
-  const [achievements, setAchievements] = useState([]);
-  const [showAchievements, setShowAchievements] = useState(false);
+  const [quests, setQuests] = useOptimizedState([]);
+  const [rewards, setRewards] = useOptimizedState({pending: [], claimed: []});
+  const [achievements, setAchievements] = useOptimizedState([]);
+  const [showAchievements, setShowAchievements] = useOptimizedState(false);
   // Card packs and cards cache
-  const [cardPacks, setCardPacks] = useState([]);
-  const [cardsById, setCardsById] = useState({});
+  const [cardPacks, setCardPacks] = useOptimizedState([]);
+  const [cardsById, setCardsById] = useOptimizedState({});
   // Collection
-  const [selectedPackId, setSelectedPackId] = useState(null);
-  const [userCards, setUserCards] = useState([]);
+  const [selectedPackId, setSelectedPackId] = useOptimizedState(null);
+  const [userCards, setUserCards] = useOptimizedState([]);
   
   // Pack Management
   const [editingPackId, setEditingPackId] = useState(null);
@@ -192,12 +190,14 @@ const QuestTaskManager = () => {
   };
 
   const getFriendById = (id) => friends.find(f => f.id === id);
-  const getMyQuests = () => quests.filter(q =>
+  const getMyQuests = useMemoizedCallback(() => quests.filter(q =>
     (q.assignedTo === user?.id) ||
     (!q.assignedBy && !q.assignedTo && q.createdBy === user?.id)
-  );
-  const getQuestsFromFriends = () => quests.filter(q => q.assignedBy && q.assignedTo === user?.id);
-  const getQuestsToFriends = () => quests.filter(q => q.assignedBy === user?.id && q.assignedTo);
+  ), [quests, user?.id]);
+  
+  const getQuestsFromFriends = useMemoizedCallback(() => quests.filter(q => q.assignedBy && q.assignedTo === user?.id), [quests, user?.id]);
+  
+  const getQuestsToFriends = useMemoizedCallback(() => quests.filter(q => q.assignedBy === user?.id && q.assignedTo), [quests, user?.id]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -421,8 +421,9 @@ const QuestTaskManager = () => {
   const loadQuests = async () => {
     if (!user) return;
 
-    try {
-      console.log('📋 Loading quests for user:', user.id);
+    return measureAsyncPerformance('loadQuests', async () => {
+      try {
+        console.log('📋 Loading quests for user:', user.id);
 
       const { data: questsData, error: questsError } = await supabase
         .from('quests')
@@ -484,9 +485,10 @@ const QuestTaskManager = () => {
         console.log('📋 Formatted quests with subtasks:', formattedQuests);
       }
 
-    } catch (error) {
-      console.error('❌ Error in loadQuests:', error);
-    }
+      } catch (error) {
+        console.error('❌ Error in loadQuests:', error);
+      }
+    });
   };
 
   const loadRewards = async () => {
@@ -2174,6 +2176,9 @@ const MyQuestsTab = () => {
   const [localSortOrder, setLocalSortOrder] = useState('asc');
   const [localShowNewQuest, setLocalShowNewQuest] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Оптимизированный поиск с дебаунсингом
+  const debouncedSearch = useDebounce(localQuestSearch, 300);
   // Sub-tabs for my quests
   const [activeMyQuestsSubtab, setActiveMyQuestsSubtab] = useState('active');
   const [hideCompletedMyQuests, setHideCompletedMyQuests] = useState(false);
@@ -2199,10 +2204,10 @@ const MyQuestsTab = () => {
   const filterQuests = (quests) => {
     let filtered = quests;
     
-    if (localQuestSearch.trim()) {
+    if (debouncedSearch.trim()) {
       filtered = filtered.filter(quest =>
-        quest.title.toLowerCase().includes(localQuestSearch.toLowerCase()) ||
-        quest.description.toLowerCase().includes(localQuestSearch.toLowerCase())
+        quest.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        quest.description.toLowerCase().includes(debouncedSearch.toLowerCase())
       );
     }
     
@@ -2274,22 +2279,45 @@ const MyQuestsTab = () => {
   };
   
   const addLocalNewQuest = async () => {
-    if (!localNewQuest.title.trim()) {
-      addNotification('Введите название квеста!', 'error');
+    return measureAsyncPerformance('addLocalNewQuest', async () => {
+      console.log('🔍 addLocalNewQuest called with:', {
+        title: localNewQuest.title,
+        description: localNewQuest.description,
+        questType,
+        user: user?.id
+      });
+
+    // Валидация с использованием схемы
+    const questData = {
+      title: localNewQuest.title,
+      description: localNewQuest.description,
+      xp: questType === 'rare' ? 200 : 500,
+      dueDate: localNewQuest.dueDate
+    };
+
+    const validation = validateForm(questData, validationSchemas.quest);
+    if (!validation.isValid) {
+      const firstError = Object.values(validation.errors)[0];
+      addNotification(firstError, 'error');
+      return;
+    }
+
+    if (!user?.id) {
+      addNotification('Пользователь не авторизован!', 'error');
       return;
     }
     
     try {
       console.log('📝 Creating personal quest with subtasks:', localNewQuest.subtasks);
       
-      const questData = {
-        title: localNewQuest.title,
-        description: localNewQuest.description,
+      const questDataForDB = {
+        title: sanitizeInput(localNewQuest.title),
+        description: sanitizeInput(localNewQuest.description || ''),
         type: localNewQuest.type,
         difficulty: questType,
         xp: questType === 'rare' ? 200 : 500,
-        reward: localNewQuest.reward,
-        bonus: localNewQuest.bonus,
+        reward: sanitizeInput(localNewQuest.reward || ''),
+        bonus: sanitizeInput(localNewQuest.bonus || ''),
         due_date: localNewQuest.dueDate ? new Date(localNewQuest.dueDate).toISOString() : null,
         created_by: user.id,
         total_steps: localNewQuest.subtasks.length || 1,
@@ -2298,7 +2326,7 @@ const MyQuestsTab = () => {
 
       const { data: createdQuest, error: questError } = await supabase
         .from('quests')
-        .insert(questData)
+        .insert(questDataForDB)
         .select()
         .single();
 
@@ -2309,11 +2337,27 @@ const MyQuestsTab = () => {
       }
 
       console.log('✅ Quest created:', createdQuest);
+      addNotification('Квест успешно создан!', 'success');
+
+      // Сбрасываем форму
+      setLocalNewQuest({
+        title: '',
+        description: '',
+        type: 'main',
+        difficulty: 'rare',
+        xp: 200,
+        reward: '',
+        bonus: '',
+        dueDate: '',
+        assignedTo: null,
+        subtasks: []
+      });
+      setLocalShowNewQuest(false);
 
       if (localNewQuest.subtasks.length > 0) {
         const subtasksData = localNewQuest.subtasks.map((subtask, index) => ({
           quest_id: createdQuest.id,
-          title: subtask.title,
+          title: sanitizeInput(subtask.title),
           xp: subtask.xp || 50,
           order_index: index,
           completed: false
@@ -2353,10 +2397,11 @@ const MyQuestsTab = () => {
       
       addNotification('Квест создан!', 'success');
 
-    } catch (error) {
-      console.error('⚠ Error creating personal quest:', error);
-      addNotification('Ошибка: ' + error.message, 'error');
-    }
+      } catch (error) {
+        console.error('⚠ Error creating personal quest:', error);
+        addNotification('Ошибка: ' + error.message, 'error');
+      }
+    });
   };
 
   return (
@@ -2903,28 +2948,39 @@ const MyQuestsTab = () => {
   };
   
   const createAssignedQuest = async () => {
-    if (!newAssignedQuest.title.trim()) {
-      addNotification('Введите название квеста!', 'error');
-      return;
-    }
-    
-    if (!newAssignedQuest.assignedTo) {
-      addNotification('Выберите друга!', 'error');
-      return;
-    }
+    return measureAsyncPerformance('createAssignedQuest', async () => {
+      // Валидация с использованием схемы
+      const questData = {
+        title: newAssignedQuest.title,
+        description: newAssignedQuest.description,
+        xp: assignedQuestType === 'rare' ? 200 : 500,
+        dueDate: newAssignedQuest.dueDate
+      };
+
+      const validation = validateForm(questData, validationSchemas.quest);
+      if (!validation.isValid) {
+        const firstError = Object.values(validation.errors)[0];
+        addNotification(firstError, 'error');
+        return;
+      }
+      
+      if (!newAssignedQuest.assignedTo) {
+        addNotification('Выберите друга!', 'error');
+        return;
+      }
 
     try {
       console.log('🎯 Creating assigned quest for friend:', newAssignedQuest.assignedTo);
       console.log('🎯 With subtasks:', newAssignedQuest.subtasks);
       
-      const questData = {
-        title: newAssignedQuest.title,
-        description: newAssignedQuest.description,
+      const questDataForDB = {
+        title: sanitizeInput(newAssignedQuest.title),
+        description: sanitizeInput(newAssignedQuest.description || ''),
         type: newAssignedQuest.type,
         difficulty: assignedQuestType,
         xp: assignedQuestType === 'rare' ? 200 : 500,
-        reward: newAssignedQuest.reward,
-        bonus: newAssignedQuest.bonus,
+        reward: sanitizeInput(newAssignedQuest.reward || ''),
+        bonus: sanitizeInput(newAssignedQuest.bonus || ''),
         due_date: newAssignedQuest.dueDate ? new Date(newAssignedQuest.dueDate).toISOString() : null,
         assigned_by: user.id,
         assigned_to: newAssignedQuest.assignedTo,
@@ -2935,7 +2991,7 @@ const MyQuestsTab = () => {
 
       const { data: createdQuest, error: questError } = await supabase
         .from('quests')
-        .insert(questData)
+        .insert(questDataForDB)
         .select()
         .single();
 
@@ -2950,7 +3006,7 @@ const MyQuestsTab = () => {
       if (newAssignedQuest.subtasks.length > 0) {
         const subtasksData = newAssignedQuest.subtasks.map((subtask, index) => ({
           quest_id: createdQuest.id,
-          title: subtask.title,
+          title: sanitizeInput(subtask.title),
           xp: subtask.xp || 50,
           order_index: index,
           completed: false
@@ -2994,10 +3050,11 @@ const MyQuestsTab = () => {
       
       addNotification(`Квест успешно назначен для ${friendName}!`, 'success');
 
-    } catch (error) {
-      console.error('⚠ Error in createAssignedQuest:', error);
-      addNotification('Ошибка: ' + error.message, 'error');
-    }
+      } catch (error) {
+        console.error('⚠ Error in createAssignedQuest:', error);
+        addNotification('Ошибка: ' + error.message, 'error');
+      }
+    });
   };
 
   return (
@@ -3970,4 +4027,13 @@ return (
 );
 };
 
-export default QuestTaskManager;
+// Обертываем приложение в ErrorBoundary для обработки ошибок
+const App = () => {
+  return (
+    <ErrorBoundary>
+      <QuestTaskManager />
+    </ErrorBoundary>
+  );
+};
+
+export default App;
