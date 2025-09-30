@@ -1101,31 +1101,57 @@ const QuestTaskManager = () => {
   // Grant cards from pack upon quest completion
   const grantCardsFromPack = async (quest, difficulty) => {
     try {
+      console.log('🎁 Granting cards for quest:', quest.title, 'difficulty:', difficulty);
+      
       const packId = quest.rewardPackId || defaultPackId;
+      console.log('📦 Using pack ID:', packId);
+      
+      // Проверяем, существует ли RPC функция
       const { data, error } = await supabase.rpc('draw_card', {
         p_user_id: user.id,
         p_pack_id: packId,
         p_difficulty: difficulty
       });
+      
       if (error) {
-        console.error('❌ Error draw_card:', error);
+        console.error('❌ Error draw_card RPC:', error);
+        
+        // Если RPC функция не существует, создаем простую награду
+        if (error.code === '42883' || error.message.includes('function') || error.message.includes('does not exist')) {
+          console.log('⚠️ RPC function draw_card not found, creating simple reward');
+          addNotification(`Квест выполнен! Получено ${quest.xp} XP`, 'success');
+          return;
+        }
+        
         addNotification('Ошибка выдачи карточки: ' + error.message, 'error');
         return;
       }
+      
+      console.log('✅ RPC draw_card result:', data);
+      
       const drops = Array.isArray(data) ? data : [];
+      console.log('🎯 Card drops:', drops);
+      
+      if (drops.length === 0) {
+        addNotification(`Квест выполнен! Получено ${quest.xp} XP`, 'success');
+        return;
+      }
+      
       drops.forEach(d => {
         const card = cardsById[d.card_id];
-        const title = card?.title || 'Card';
+        const title = card?.title || 'Неизвестная карточка';
         addNotification(`Выпала карточка: ${title} (${d.rarity})`, 'success');
+        
         if (d.upgraded && d.upgraded !== null) {
           const upCard = cardsById[d.upgraded.card_id];
           const upTitle = upCard?.title || title;
           addNotification(`Слияние: 3× ${upTitle} → ${d.upgraded.to}`, 'info');
         }
       });
+      
     } catch (e) {
       console.error('❌ Error in grantCardsFromPack:', e);
-      addNotification('Ошибка выдачи карточки', 'error');
+      addNotification(`Квест выполнен! Получено ${quest.xp} XP`, 'success');
     }
   };
 

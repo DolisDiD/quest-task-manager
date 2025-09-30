@@ -5,7 +5,7 @@ class PerformanceMonitor {
   constructor() {
     this.metrics = new Map();
     this.observers = new Map();
-    this.isEnabled = process.env.NODE_ENV === 'production';
+    this.isEnabled = process.env.NODE_ENV === 'development';
     
     if (this.isEnabled) {
       this.initializeWebVitals();
@@ -211,23 +211,18 @@ class PerformanceMonitor {
       });
     }
 
-    // Отправка в собственный API
+    // Отправка в собственный API (отключено для избежания ошибок)
     this.sendToAPI(metric);
   }
 
-  // Отправка в собственный API
+  // Отправка в собственный API (отключено для production)
   async sendToAPI(metric) {
-    try {
-      await fetch('/api/analytics/performance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(metric)
-      });
-    } catch (error) {
-      console.error('Failed to send performance metric:', error);
+    // Отключаем отправку в API для избежания ошибок
+    // В production можно настроить реальный endpoint
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Performance metric (dev only):', metric);
     }
+    // Не отправляем в API, чтобы избежать ошибок
   }
 
   // Измерение времени выполнения функции
