@@ -99,53 +99,6 @@ const QuestTaskManager = () => {
   const { codes, createInvitationCode } = useInvitationCodes(user?.id);
   const { subscription } = useSubscriptions(user?.id);
   
-  // Временная функция для восстановления роли админа (только для разработки)
-  const restoreAdminRole = async () => {
-    if (!user?.id) return;
-    
-    try {
-      console.log('🔧 Attempting to restore admin role...');
-      
-      // Сначала удаляем все существующие роли
-      const { error: deleteError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', user.id);
-      
-      if (deleteError) {
-        console.error('Error deleting existing roles:', deleteError);
-      }
-      
-      // Создаем роль администратора
-      const { data, error } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
-          role_type: 'admin',
-          is_active: true
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error creating admin role:', error);
-        addNotification('Ошибка создания роли админа: ' + error.message, 'error');
-        return;
-      }
-      
-      console.log('✅ Admin role restored:', data);
-      addNotification('Роль администратора восстановлена!', 'success');
-      
-      // Перезагружаем страницу для обновления роли
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Error in restoreAdminRole:', error);
-      addNotification('Ошибка: ' + error.message, 'error');
-    }
-  };
   
   const addNotification = (message, type = 'info', timeoutMs = 3000) => {
     const id = Date.now() + Math.random();
@@ -3881,16 +3834,6 @@ return (
                        userRole.role_type === 'archimage' ? 'Архимаг' : 
                        userRole.role_type === 'explorer' ? 'Исследователь' : userRole.role_type}
                     </span>
-                    {/* Кнопка восстановления роли админа (только если не админ) */}
-                    {userRole.role_type !== 'admin' && (
-                      <button
-                        onClick={restoreAdminRole}
-                        className="ml-2 px-2 py-1 text-xs bg-red-600 hover:bg-red-700 rounded text-white"
-                        title="Восстановить роль администратора"
-                      >
-                        Восстановить админ
-                      </button>
-                    )}
                     {userRole?.role_type === 'admin' && (
                       <button
                         onClick={async () => {

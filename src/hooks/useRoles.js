@@ -34,14 +34,13 @@ export const useRoles = (userId) => {
 
       if (roleData) {
         setUserRole(roleData);
-        // Загружаем лимиты роли отдельно
-        const { data: limitsData } = await supabase
-          .from('role_limits')
-          .select('*')
-          .eq('role_type', roleData.role_type)
-          .single();
-        
-        setRoleLimits(limitsData);
+        // Устанавливаем базовые лимиты для ролей
+        const defaultLimits = {
+          admin: { max_packs: 999, max_invitation_codes: 999, can_create_packs: true, can_create_codes: true, can_manage_users: true, can_view_all: true },
+          archimage: { max_packs: 10, max_invitation_codes: 5, can_create_packs: true, can_create_codes: true, can_manage_users: false, can_view_all: false },
+          explorer: { max_packs: 3, max_invitation_codes: 1, can_create_packs: false, can_create_codes: false, can_manage_users: false, can_view_all: false }
+        };
+        setRoleLimits(defaultLimits[roleData.role_type] || defaultLimits.explorer);
       } else {
         // Если роли нет, создаем роль исследователя по умолчанию
         const { data: defaultRole, error: defaultError } = await supabase
@@ -58,14 +57,13 @@ export const useRoles = (userId) => {
         }
 
         setUserRole(defaultRole);
-        // Загружаем лимиты роли отдельно
-        const { data: limitsData } = await supabase
-          .from('role_limits')
-          .select('*')
-          .eq('role_type', 'explorer')
-          .single();
-        
-        setRoleLimits(limitsData);
+        // Устанавливаем лимиты для исследователя
+        const defaultLimits = {
+          admin: { max_packs: 999, max_invitation_codes: 999, can_create_packs: true, can_create_codes: true, can_manage_users: true, can_view_all: true },
+          archimage: { max_packs: 10, max_invitation_codes: 5, can_create_packs: true, can_create_codes: true, can_manage_users: false, can_view_all: false },
+          explorer: { max_packs: 3, max_invitation_codes: 1, can_create_packs: false, can_create_codes: false, can_manage_users: false, can_view_all: false }
+        };
+        setRoleLimits(defaultLimits.explorer);
       }
     } catch (err) {
       console.error('Error loading user role:', err);
@@ -132,16 +130,20 @@ export const useRoles = (userId) => {
           role_type: newRoleType,
           expires_at: expiresAt
         })
-        .select(`
-          *,
-          role_limits!inner(*)
-        `)
+        .select('*')
         .single();
 
       if (error) throw error;
 
       setUserRole(data);
-      setRoleLimits(data.role_limits);
+      
+      // Устанавливаем лимиты для новой роли
+      const defaultLimits = {
+        admin: { max_packs: 999, max_invitation_codes: 999, can_create_packs: true, can_create_codes: true, can_manage_users: true, can_view_all: true },
+        archimage: { max_packs: 10, max_invitation_codes: 5, can_create_packs: true, can_create_codes: true, can_manage_users: false, can_view_all: false },
+        explorer: { max_packs: 3, max_invitation_codes: 1, can_create_packs: false, can_create_codes: false, can_manage_users: false, can_view_all: false }
+      };
+      setRoleLimits(defaultLimits[newRoleType] || defaultLimits.explorer);
 
       return { data, error: null };
     } catch (err) {
