@@ -3526,7 +3526,7 @@ return (
               className="hidden sm:flex items-center space-x-2 glass hover:glass-hover px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
             >
               <Mail className="w-4 h-4 text-blue-400" />
-              <span className="text-white font-medium truncate max-w-[150px]">{currentUser.email}</span>
+              <span className="text-white font-medium">Профиль</span>
             </button>
             
             {/* Mobile menu button */}
