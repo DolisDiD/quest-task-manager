@@ -3515,7 +3515,7 @@ if (!user) {
 
 const tabs = [
   { id: 'dashboard', label: 'Главная', icon: Home },
-  { id: 'my-quests', label: 'Мои задания', icon: ListChecks },
+  { id: 'my-quests', label: 'Мои задачи', icon: ListChecks },
   { id: 'rewards', label: 'Награды', icon: Trophy },
   { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
   { id: 'friends', label: 'Друзья', icon: Users }
@@ -3670,7 +3670,7 @@ return (
                 className="gradient-bg hover:shadow-glow rounded-lg p-3 transition-all duration-300 hover:scale-105"
               >
                 <ListChecks className="w-5 h-5 mb-1 mx-auto" />
-                <div className="text-xs">Мои задания</div>
+                <div className="text-xs">Мои задачи</div>
               </button>
               <button
                 onClick={() => handleTabChange('rewards')}

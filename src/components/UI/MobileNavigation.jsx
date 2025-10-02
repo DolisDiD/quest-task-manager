@@ -13,7 +13,7 @@ const MobileNavigation = ({
 }) => {
   const tabs = [
     { id: 'dashboard', label: 'Главная', icon: Home },
-    { id: 'my-quests', label: 'Квесты', icon: ListChecks },
+    { id: 'my-quests', label: 'Мои задачи', icon: ListChecks },
     { id: 'rewards', label: 'Награды', icon: Trophy },
     { id: 'assigned-quests', label: 'Поставленные', icon: Send },
     { id: 'friends', label: 'Друзья', icon: Users, badge: friendRequestsCount }
