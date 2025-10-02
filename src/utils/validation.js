@@ -39,13 +39,6 @@ export const validators = {
     return true;
   },
 
-  // XP валидация
-  xp: (value) => {
-    const num = parseInt(value);
-    if (isNaN(num) || num < 0) return 'XP должно быть положительным числом';
-    if (num > 10000) return 'XP не должно превышать 10000';
-    return true;
-  },
 
   // Дата валидация
   date: (value) => {
@@ -121,7 +114,6 @@ export const validationSchemas = {
   quest: {
     title: validators.questTitle,
     description: validators.questDescription,
-    xp: validators.xp,
     dueDate: validators.date
   },
 
