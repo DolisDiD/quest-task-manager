@@ -190,7 +190,6 @@ export const useOptimizedQuests = (userId) => {
         const subtasksData = questData.subtasks.map((subtask, index) => ({
           quest_id: data.id,
           title: subtask.title,
-          xp: subtask.xp || 50,
           order_index: index,
           completed: false
         }));

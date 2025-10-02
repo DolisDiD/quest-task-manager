@@ -2333,27 +2333,11 @@ const MyQuestsTab = () => {
       }
 
       console.log('✅ Quest created:', createdQuest);
-      addNotification('Квест успешно создан!', 'success');
-
-      // Сбрасываем форму
-      setLocalNewQuest({
-        title: '',
-        description: '',
-        type: 'main',
-        difficulty: 'rare',
-        reward: '',
-        bonus: '',
-        dueDate: '',
-        assignedTo: null,
-        subtasks: []
-      });
-      setLocalShowNewQuest(false);
 
       if (localNewQuest.subtasks.length > 0) {
         const subtasksData = localNewQuest.subtasks.map((subtask, index) => ({
           quest_id: createdQuest.id,
           title: sanitizeInput(subtask.title),
-          xp: subtask.xp || 50,
           order_index: index,
           completed: false
         }));
@@ -2372,6 +2356,7 @@ const MyQuestsTab = () => {
         }
       }
 
+      // Сбрасываем форму
       setLocalNewQuest({
         title: '',
         description: '',
@@ -2387,6 +2372,7 @@ const MyQuestsTab = () => {
       setQuestType('rare');
       setShowSubtaskForm(false);
 
+      // Обновляем список квестов
       await loadQuests();
       
       addNotification('Квест создан!', 'success');
@@ -2994,7 +2980,6 @@ const MyQuestsTab = () => {
         const subtasksData = newAssignedQuest.subtasks.map((subtask, index) => ({
           quest_id: createdQuest.id,
           title: sanitizeInput(subtask.title),
-          xp: subtask.xp || 50,
           order_index: index,
           completed: false
         }));
