@@ -16,7 +16,7 @@ import {
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
   Target, Zap, Search, Filter, Calendar, User, Users, Gift,
   Mail, Lock, Save, X, UserPlus, Send, Award, Home, ListChecks,
-  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu, Settings
+  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu, Settings, User, Crown, Key
 } from 'lucide-react';
 
 // Импорты для системы ролей
@@ -3502,12 +3502,9 @@ const tabs = [
   { id: 'my-quests', label: 'Мои задания', icon: ListChecks },
   { id: 'rewards', label: 'Награды', icon: Trophy },
   { id: 'collection', label: 'Коллекция', icon: Award },
-  { id: 'pack-manager', label: 'Управление пачками', icon: Settings },
   { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
   { id: 'friends', label: 'Друзья', icon: Users },
-  // Новые вкладки для системы ролей
-  ...(hasPermission('can_create_codes') ? [{ id: 'invitation-codes', label: 'Коды приглашений', icon: Shield }] : []),
-  ...(userRole?.role_type === 'admin' ? [{ id: 'admin', label: 'Админ-панель', icon: Settings }] : [])
+  { id: 'profile', label: 'Профиль', icon: User }
 ];
 
 return (
@@ -3811,6 +3808,52 @@ return (
                     <span>{friends.length} друзей</span>
                   </div>
                 </div>
+
+                {/* Административные функции */}
+                {(hasPermission('can_create_packs') || hasPermission('can_create_codes') || userRole?.role_type === 'admin') && (
+                  <div className="border-t border-gray-700 pt-6 mt-6">
+                    <h3 className="text-lg font-semibold mb-4 text-blue-400">Административные функции</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {hasPermission('can_create_packs') && (
+                        <button
+                          onClick={() => handleTabChange('pack-manager')}
+                          className="flex items-center space-x-3 p-3 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-colors border border-gray-600"
+                        >
+                          <Settings className="w-5 h-5 text-blue-400" />
+                          <span>Управление пачками</span>
+                        </button>
+                      )}
+                      
+                      {hasPermission('can_create_codes') && (
+                        <button
+                          onClick={() => handleTabChange('invitation-codes')}
+                          className="flex items-center space-x-3 p-3 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-colors border border-gray-600"
+                        >
+                          <Shield className="w-5 h-5 text-green-400" />
+                          <span>Коды приглашений</span>
+                        </button>
+                      )}
+                      
+                      {userRole?.role_type === 'admin' && (
+                        <button
+                          onClick={() => handleTabChange('admin')}
+                          className="flex items-center space-x-3 p-3 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-colors border border-gray-600"
+                        >
+                          <Crown className="w-5 h-5 text-purple-400" />
+                          <span>Админ-панель</span>
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => setShowActivateCodeModal(true)}
+                        className="flex items-center space-x-3 p-3 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-colors border border-gray-600"
+                      >
+                        <Key className="w-5 h-5 text-yellow-400" />
+                        <span>Активировать код</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
@@ -3894,7 +3937,6 @@ return (
       
       {activeTab === 'rewards' && <RewardsTab />}
       {activeTab === 'collection' && <CollectionTab />}
-      {activeTab === 'pack-manager' && <PackManagerTab />}
       {activeTab === 'my-quests' && (
         tabLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -3908,9 +3950,10 @@ return (
       {activeTab === 'friends' && <FriendsTab />}
       {activeTab === 'assigned-quests' && <AssignedQuestsTab />}
       
-        {/* Новые вкладки для системы ролей */}
-        {activeTab === 'invitation-codes' && <InvitationCodesTab userId={user?.id} />}
-        {activeTab === 'admin' && <AdminPanel userId={user?.id} />}
+      {/* Административные вкладки (доступны через профиль) */}
+      {activeTab === 'pack-manager' && <PackManagerTab />}
+      {activeTab === 'invitation-codes' && <InvitationCodesTab userId={user?.id} />}
+      {activeTab === 'admin' && <AdminPanel userId={user?.id} />}
       </PageTransition>
     </div>
 

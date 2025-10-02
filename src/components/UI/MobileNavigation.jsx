@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Home, ListChecks, Trophy, Users, Gift, Award, 
-  Shield, Settings, Plus, Bell, User
+  Shield, Settings, Plus, Bell, User, Send
 } from 'lucide-react';
 
 const MobileNavigation = ({ 
@@ -16,9 +16,8 @@ const MobileNavigation = ({
     { id: 'my-quests', label: 'Квесты', icon: ListChecks },
     { id: 'rewards', label: 'Награды', icon: Trophy },
     { id: 'collection', label: 'Коллекция', icon: Award },
+    { id: 'assigned-quests', label: 'Поставленные', icon: Send },
     { id: 'friends', label: 'Друзья', icon: Users, badge: friendRequestsCount },
-    { id: 'pack-manager', label: 'Пачки', icon: Gift },
-    { id: 'invitation-codes', label: 'Коды', icon: Shield },
     { id: 'profile', label: 'Профиль', icon: User }
   ];
 
