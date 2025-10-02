@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import BottomSheet from './components/UI/BottomSheet';
-import { XPProgressRing } from './components/UI/ProgressRing';
 import { QuestStatusBadge } from './components/UI/StatusBadge';
 import PageTransition from './components/UI/PageTransition';
 import { SkeletonQuestList } from './components/UI/SkeletonList';
@@ -122,11 +121,7 @@ const QuestTaskManager = () => {
     id: 1,
     name: 'Герой',
     email: 'hero@quest.com',
-    level: 2,
-    xp: 0,
-    xpToNext: 1000,
     completedQuests: 0,
-    totalXp: 0,
     avatar: 'Hero'
   });
 
@@ -326,7 +321,6 @@ const QuestTaskManager = () => {
           id: user.id,
           name: currentUser.name,
           email: user.email,
-          level: currentUser.level || 2,
           avatar: currentUser.avatar || 'Hero'
         });
 
@@ -355,7 +349,6 @@ const QuestTaskManager = () => {
             return {
               ...friend,
               status: 'online',
-              level: friend.level || 2,
               avatar: friend.avatar || 'Hero'
             };
           });
@@ -386,7 +379,6 @@ const QuestTaskManager = () => {
             ...req.from_profile,
             request_id: req.id,
             from_user: req.from_user,
-            level: req.from_profile?.level || 2,
             avatar: req.from_profile?.avatar || 'Hero'
           }));
           setFriendRequests(requests);
@@ -408,7 +400,6 @@ const QuestTaskManager = () => {
         if (usersData) {
           setAllUsers(usersData.map(u => ({
             ...u,
-            level: u.level || 2,
             avatar: u.avatar || 'Hero'
           })));
         }
@@ -1079,17 +1070,7 @@ const QuestTaskManager = () => {
         return;
       }
 
-      setCurrentUser(prev => {
-        const newXp = prev.xp + reward.xp;
-        const levelUp = newXp >= prev.xpToNext;
-        return {
-          ...prev,
-          xp: levelUp ? newXp - prev.xpToNext : newXp,
-          level: levelUp ? prev.level + 1 : prev.level,
-          xpToNext: levelUp ? prev.xpToNext + 500 : prev.xpToNext,
-          totalXp: prev.totalXp + reward.xp
-        };
-      });
+      // Reward claimed successfully
 
       await loadRewards();
 
@@ -1120,7 +1101,7 @@ const QuestTaskManager = () => {
         // Если RPC функция не существует, создаем простую награду
         if (error.code === '42883' || error.message.includes('function') || error.message.includes('does not exist')) {
           console.log('⚠️ RPC function draw_card not found, creating simple reward');
-          addNotification(`Квест выполнен! Получено ${quest.xp} XP`, 'success');
+          addNotification(`Квест выполнен!`, 'success');
           return;
         }
         
@@ -1134,7 +1115,7 @@ const QuestTaskManager = () => {
       console.log('🎯 Card drops:', drops);
       
       if (drops.length === 0) {
-        addNotification(`Квест выполнен! Получено ${quest.xp} XP`, 'success');
+        addNotification(`Квест выполнен!`, 'success');
         return;
       }
       
@@ -1710,7 +1691,6 @@ const QuestTaskManager = () => {
             quest_title: quest.title,
             title: quest.reward || 'Квест выполнен!',
             bonus: quest.bonus,
-            xp: quest.xp,
             type: 'main',
             claimed: false,
             earned_at: new Date().toISOString()
@@ -1975,10 +1955,6 @@ const QuestTaskManager = () => {
           
           <div className="text-left sm:text-right sm:ml-6 space-y-2">
             <div className="flex items-center space-x-2">
-              <Zap className="w-4 h-4 text-blue-400" />
-              <span className="text-blue-400 font-bold">{quest.xp} XP</span>
-            </div>
-            <div className="flex items-center space-x-2">
               <Trophy className="w-4 h-4 text-yellow-400" />
               <span className="text-yellow-400 text-sm">{quest.reward}</span>
             </div>
@@ -2172,10 +2148,6 @@ const QuestTaskManager = () => {
                   </div>
                   
                   <div className="text-left sm:text-right">
-                    <div className="flex items-center space-x-1 mb-2">
-                      <Zap className="w-4 h-4 text-blue-400" />
-                      <span className="text-blue-400 font-bold">{reward.xp} XP</span>
-                    </div>
                     {!reward.claimed && (
                       <button
                         onClick={() => claimReward(reward.id)}
@@ -2215,7 +2187,6 @@ const MyQuestsTab = () => {
     description: '',
     type: 'main',
     difficulty: 'rare',
-    xp: 200,
     reward: '',
     bonus: '',
     dueDate: '',
@@ -2318,7 +2289,6 @@ const MyQuestsTab = () => {
     const questData = {
       title: localNewQuest.title,
       description: localNewQuest.description,
-      xp: questType === 'rare' ? 200 : 500,
       dueDate: localNewQuest.dueDate
     };
 
@@ -2342,7 +2312,6 @@ const MyQuestsTab = () => {
         description: sanitizeInput(localNewQuest.description || ''),
         type: localNewQuest.type,
         difficulty: questType,
-        xp: questType === 'rare' ? 200 : 500,
         reward: sanitizeInput(localNewQuest.reward || ''),
         bonus: sanitizeInput(localNewQuest.bonus || ''),
         due_date: localNewQuest.dueDate ? new Date(localNewQuest.dueDate).toISOString() : null,
@@ -2372,7 +2341,6 @@ const MyQuestsTab = () => {
         description: '',
         type: 'main',
         difficulty: 'rare',
-        xp: 200,
         reward: '',
         bonus: '',
         dueDate: '',
@@ -2409,7 +2377,6 @@ const MyQuestsTab = () => {
         description: '',
         type: 'main',
         difficulty: 'rare',
-        xp: 200,
         reward: '',
         bonus: '',
         dueDate: '',
@@ -2506,7 +2473,6 @@ const MyQuestsTab = () => {
             <option value="dueDate">По сроку</option>
             <option value="created">По дате создания</option>
             <option value="difficulty">По сложности</option>
-            <option value="xp">По XP</option>
             <option value="alphabetical">По алфавиту</option>
           </select>
         </div>
@@ -2549,7 +2515,7 @@ const MyQuestsTab = () => {
                   <Star className="w-8 h-8 text-blue-400" />
                 </div>
                 <div className="font-bold text-blue-400">Rare</div>
-                <div className="text-xs text-gray-400 mt-1">Одиночная задача (200 XP)</div>
+                <div className="text-xs text-gray-400 mt-1">Одиночная задача</div>
               </button>
               
               <button
@@ -2567,7 +2533,7 @@ const MyQuestsTab = () => {
                   <Trophy className="w-8 h-8 text-yellow-400" />
                 </div>
                 <div className="font-bold text-yellow-400">Legendary</div>
-                <div className="text-xs text-gray-400 mt-1">С подзадачами (500 XP)</div>
+                <div className="text-xs text-gray-400 mt-1">С подзадачами</div>
               </button>
             </div>
           </div>
@@ -2698,7 +2664,6 @@ const MyQuestsTab = () => {
                   description: '',
                   type: 'main',
                   difficulty: 'rare',
-                  xp: 200,
                   reward: '',
                   bonus: '',
                   dueDate: '',
@@ -2866,7 +2831,6 @@ const MyQuestsTab = () => {
                     <div>{getAvatarIcon(request.avatar)}</div>
                     <div>
                       <h4 className="font-bold text-white">{request.name}</h4>
-                      <div className="text-sm text-gray-400">Уровень {request.level}</div>
                       <div className="text-xs text-yellow-400 truncate">{request.email}</div>
                     </div>
                   </div>
@@ -2907,7 +2871,6 @@ const MyQuestsTab = () => {
                   <div>{getAvatarIcon(friend.avatar)}</div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold truncate">{friend.name}</h4>
-                    <div className="text-sm text-gray-400">Уровень {friend.level}</div>
                     <div className={`text-xs ${friend.status === 'online' ? 'text-green-400' : 'text-gray-500'}`}>
                       {friend.status === 'online' ? '● В сети' : '○ Не в сети'}
                     </div>
@@ -2938,7 +2901,6 @@ const MyQuestsTab = () => {
     description: '',
     type: 'main',
     difficulty: 'rare',
-    xp: 200,
     reward: '',
     bonus: '',
     dueDate: '',
@@ -2980,7 +2942,6 @@ const MyQuestsTab = () => {
       const questData = {
         title: newAssignedQuest.title,
         description: newAssignedQuest.description,
-        xp: assignedQuestType === 'rare' ? 200 : 500,
         dueDate: newAssignedQuest.dueDate
       };
 
@@ -3005,7 +2966,6 @@ const MyQuestsTab = () => {
         description: sanitizeInput(newAssignedQuest.description || ''),
         type: newAssignedQuest.type,
         difficulty: assignedQuestType,
-        xp: assignedQuestType === 'rare' ? 200 : 500,
         reward: sanitizeInput(newAssignedQuest.reward || ''),
         bonus: sanitizeInput(newAssignedQuest.bonus || ''),
         due_date: newAssignedQuest.dueDate ? new Date(newAssignedQuest.dueDate).toISOString() : null,
@@ -3061,7 +3021,6 @@ const MyQuestsTab = () => {
         description: '',
         type: 'main',
         difficulty: 'rare',
-        xp: 200,
         reward: '',
         bonus: '',
         dueDate: '',
@@ -3138,7 +3097,7 @@ const MyQuestsTab = () => {
               <option value="">-- Выберите друга --</option>
               {friends.map(friend => (
                 <option key={friend.id} value={friend.id}>
-                  {friend.name} (Уровень {friend.level})
+                  {friend.name}
                 </option>
               ))}
             </select>
@@ -3174,7 +3133,7 @@ const MyQuestsTab = () => {
                   <Star className="w-8 h-8 text-blue-400" />
                 </div>
                 <div className="font-bold text-blue-400">Rare</div>
-                <div className="text-xs text-gray-400 mt-1">Одиночная задача (200 XP)</div>
+                <div className="text-xs text-gray-400 mt-1">Одиночная задача</div>
               </button>
               
               <button
@@ -3192,7 +3151,7 @@ const MyQuestsTab = () => {
                   <Trophy className="w-8 h-8 text-yellow-400" />
                 </div>
                 <div className="font-bold text-yellow-400">Legendary</div>
-                <div className="text-xs text-gray-400 mt-1">С подзадачами (500 XP)</div>
+                <div className="text-xs text-gray-400 mt-1">С подзадачами</div>
               </button>
             </div>
           </div>
@@ -3323,7 +3282,6 @@ const MyQuestsTab = () => {
                   description: '',
                   type: 'main',
                   difficulty: 'rare',
-                  xp: 200,
                   reward: '',
                   bonus: '',
                   dueDate: '',
@@ -3584,17 +3542,6 @@ return (
           </div>
           
           <div className="flex items-center space-x-3 sm:space-x-6">
-            {/* XP Progress - скрываем текст на мобильных */}
-            <div className="text-right">
-              <div className="text-xs sm:text-sm text-gray-400">Уровень {currentUser.level}</div>
-              <div className="w-20 sm:w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300"
-                  style={{ width: `${(currentUser.xp / currentUser.xpToNext) * 100}%` }}
-                />
-              </div>
-              <div className="text-xs text-gray-500">{currentUser.xp}/{currentUser.xpToNext} XP</div>
-            </div>
             
             {/* Achievements button */}
             <button
@@ -3603,8 +3550,6 @@ return (
             >
               <Trophy className="w-4 h-4" />
               <span className="text-sm">{currentUser.completedQuests}</span>
-              <Zap className="w-4 h-4" />
-              <span className="text-sm">{currentUser.totalXp}</span>
             </button>
 
             {/* Logout button */}
@@ -3829,14 +3774,6 @@ return (
                   </div>
                   <div className="flex-1">
                     <h3 className="text-2xl font-bold gradient-text">{currentUser.name}</h3>
-                    <div className="text-gray-400 mt-1">{currentUser.totalXp} XP</div>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <XPProgressRing 
-                      currentXP={currentUser.xp || 0}
-                      maxXP={currentUser.xpToNext || 100}
-                      level={currentUser.level || 2}
-                    />
                   </div>
                 </div>
                 {userRole && (
