@@ -122,7 +122,7 @@ const QuestTaskManager = () => {
     id: 1,
     name: 'Герой',
     email: 'hero@quest.com',
-    level: 1,
+    level: 2,
     xp: 0,
     xpToNext: 1000,
     completedQuests: 0,
@@ -326,7 +326,7 @@ const QuestTaskManager = () => {
           id: user.id,
           name: currentUser.name,
           email: user.email,
-          level: currentUser.level || 1,
+          level: currentUser.level || 2,
           avatar: currentUser.avatar || 'Hero'
         });
 
@@ -355,7 +355,7 @@ const QuestTaskManager = () => {
             return {
               ...friend,
               status: 'online',
-              level: friend.level || 1,
+              level: friend.level || 2,
               avatar: friend.avatar || 'Hero'
             };
           });
@@ -386,7 +386,7 @@ const QuestTaskManager = () => {
             ...req.from_profile,
             request_id: req.id,
             from_user: req.from_user,
-            level: req.from_profile?.level || 1,
+            level: req.from_profile?.level || 2,
             avatar: req.from_profile?.avatar || 'Hero'
           }));
           setFriendRequests(requests);
@@ -408,7 +408,7 @@ const QuestTaskManager = () => {
         if (usersData) {
           setAllUsers(usersData.map(u => ({
             ...u,
-            level: u.level || 1,
+            level: u.level || 2,
             avatar: u.avatar || 'Hero'
           })));
         }
@@ -1569,7 +1569,7 @@ const QuestTaskManager = () => {
           id: user.id,
           name: profileForm.name || currentUser.name,
           email: profileForm.email || user.email,
-          level: currentUser.level || 1,
+          level: currentUser.level || 2,
           avatar: currentUser.avatar || 'Hero'
         });
 
@@ -3835,7 +3835,7 @@ return (
                     <XPProgressRing 
                       currentXP={currentUser.xp || 0}
                       maxXP={currentUser.xpToNext || 100}
-                      level={currentUser.level || 1}
+                      level={currentUser.level || 2}
                     />
                   </div>
                 </div>
