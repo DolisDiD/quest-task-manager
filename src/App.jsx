@@ -749,70 +749,79 @@ const QuestTaskManager = () => {
 
   const uploadCardImage = async (cardId, file, packId = null) => {
     try {
-      console.log('Starting image upload...');
+      console.log('🖼️ Starting image upload for card:', cardId);
+      console.log('📁 File:', file.name, 'Size:', file.size, 'Type:', file.type);
       
-      // Определяем путь для загрузки
-      let path = `cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
-      
-      // Если указан packId, создаем папку для пользователя
-      if (packId && user?.id) {
-        const { data: pack } = await supabase
-          .from('card_packs')
-          .select('owner_id')
-          .eq('id', packId)
-          .single();
-          
-        if (pack?.owner_id) {
-          // Используем папку пользователя в bucket'е 'cards'
-          path = `users/${pack.owner_id}/cards/${cardId}.${file.name.split('.').pop() || 'jpg'}`;
-        }
-      }
-      
-      console.log('Uploading to path:', path);
-      
-      // Пробуем загрузить в bucket 'cards' напрямую
-      const { error: upErr } = await supabase.storage.from('cards').upload(path, file, { upsert: true });
-      
-      if (upErr) {
-        console.error('Upload error:', upErr);
-        
-        // Если не удалось загрузить в 'cards', пробуем 'public'
-        console.log('Trying fallback to public bucket...');
-        const { error: fallbackErr } = await supabase.storage.from('public').upload(path, file, { upsert: true });
-        
-        if (fallbackErr) {
-          console.error('Fallback upload error:', fallbackErr);
-          addNotification('Ошибка загрузки: ' + fallbackErr.message, 'error');
-          return null;
-        }
-        
-        // Получаем URL из public bucket
-        const { data: pub } = supabase.storage.from('public').getPublicUrl(path);
-        const publicUrl = pub?.publicUrl;
-        
-        if (!publicUrl) {
-          addNotification('Не удалось получить public URL', 'error');
-          return null;
-        }
-        
-        console.log('Successfully uploaded to public bucket');
-        return publicUrl;
-      }
-      
-      // Получаем URL из cards bucket
-      const { data: pub } = supabase.storage.from('cards').getPublicUrl(path);
-      const publicUrl = pub?.publicUrl;
-      
-      if (!publicUrl) {
-        addNotification('Не удалось получить public URL', 'error');
+      // Проверяем размер файла (максимум 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        addNotification('Файл слишком большой. Максимальный размер: 5MB', 'error');
         return null;
       }
       
-      console.log('Successfully uploaded to cards bucket');
+      // Проверяем тип файла
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        addNotification('Неподдерживаемый тип файла. Разрешены: JPG, PNG, WebP, GIF', 'error');
+        return null;
+      }
+      
+      // Определяем путь для загрузки
+      const fileExtension = file.name.split('.').pop() || 'jpg';
+      let path = `card-images/${cardId}.${fileExtension}`;
+      
+      console.log('📂 Upload path:', path);
+      
+      // Сначала пробуем загрузить в bucket 'public' (он должен существовать по умолчанию)
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('public')
+        .upload(path, file, { 
+          upsert: true,
+          cacheControl: '3600'
+        });
+      
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError);
+        
+        // Если public bucket не работает, пробуем создать временный URL
+        console.log('🔄 Trying alternative approach...');
+        
+        // Конвертируем файл в base64 и сохраняем как data URL
+        const reader = new FileReader();
+        return new Promise((resolve) => {
+          reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            console.log('✅ Created data URL for image');
+            resolve(dataUrl);
+          };
+          reader.onerror = () => {
+            console.error('❌ Failed to read file');
+            addNotification('Ошибка чтения файла', 'error');
+            resolve(null);
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+      
+      // Получаем публичный URL
+      const { data: publicUrlData } = supabase.storage
+        .from('public')
+        .getPublicUrl(path);
+      
+      const publicUrl = publicUrlData?.publicUrl;
+      
+      if (!publicUrl) {
+        console.error('❌ Failed to get public URL');
+        addNotification('Не удалось получить URL изображения', 'error');
+        return null;
+      }
+      
+      console.log('✅ Successfully uploaded image:', publicUrl);
+      addNotification('Изображение загружено успешно', 'success');
       return publicUrl;
+      
     } catch (e) {
       console.error('❌ Error in uploadCardImage:', e);
-      addNotification('Ошибка: ' + (e?.message || e), 'error');
+      addNotification('Ошибка загрузки: ' + (e?.message || e), 'error');
       return null;
     }
   };
