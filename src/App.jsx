@@ -3518,13 +3518,6 @@ return (
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Sword className="w-8 h-8 text-yellow-400" />
-            <button
-              onClick={() => handleTabChange('profile')}
-              className="hidden sm:flex items-center space-x-2 glass hover:glass-hover px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
-            >
-              <Mail className="w-4 h-4 text-blue-400" />
-              <span className="text-white font-medium">Профиль</span>
-            </button>
             
             {/* Mobile menu button */}
             <button
@@ -3604,21 +3597,6 @@ return (
             </motion.button>
           );
         })}
-            
-        {/* Кнопка активации кода для всех пользователей */}
-        <motion.button
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          onClick={() => {
-            setShowActivateCodeModal(true);
-            setMobileMenuOpen(false);
-          }}
-          className="flex items-center space-x-3 px-4 py-3 rounded-xl transition-all bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border border-blue-500/30"
-        >
-          <Shield className="w-5 h-5" />
-          <span className="text-base font-medium">Активировать код</span>
-        </motion.button>
       </div>
     </BottomSheet>
 
@@ -3653,15 +3631,6 @@ return (
               </button>
             );
           })}
-          
-          {/* Кнопка активации кода для всех пользователей */}
-          <button
-            onClick={() => setShowActivateCodeModal(true)}
-            className="flex items-center space-x-2 px-4 py-3 rounded-t-lg transition-all bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-blue-300 border border-blue-500/30 hover:border-blue-400/50"
-          >
-            <Shield className="w-4 h-4" />
-            <span className="whitespace-nowrap">Активировать код</span>
-          </button>
         </div>
       </div>
     </div>
