@@ -2312,6 +2312,7 @@ const MyQuestsTab = () => {
         description: sanitizeInput(localNewQuest.description || ''),
         type: localNewQuest.type,
         difficulty: questType,
+        xp: 0, // Добавляем поле xp для совместимости с БД
         reward: sanitizeInput(localNewQuest.reward || ''),
         bonus: sanitizeInput(localNewQuest.bonus || ''),
         due_date: localNewQuest.dueDate ? new Date(localNewQuest.dueDate).toISOString() : null,
@@ -2966,6 +2967,7 @@ const MyQuestsTab = () => {
         description: sanitizeInput(newAssignedQuest.description || ''),
         type: newAssignedQuest.type,
         difficulty: assignedQuestType,
+        xp: 0, // Добавляем поле xp для совместимости с БД
         reward: sanitizeInput(newAssignedQuest.reward || ''),
         bonus: sanitizeInput(newAssignedQuest.bonus || ''),
         due_date: newAssignedQuest.dueDate ? new Date(newAssignedQuest.dueDate).toISOString() : null,
