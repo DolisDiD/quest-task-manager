@@ -1163,10 +1163,12 @@ const QuestTaskManager = () => {
           <select
             value={curPackId || ''}
             onChange={(e) => setSelectedPackId(e.target.value)}
-            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             {packs.map(p => (
-              <option key={p.id} value={p.id}>{p.title}{p.is_builtin ? ' (встроенная)' : ''}</option>
+              <option key={p.id} value={p.id} className="bg-gray-700 text-white">
+                {p.title}{p.is_builtin ? ' (встроенная)' : ''}
+              </option>
             ))}
           </select>
         </div>
@@ -1319,10 +1321,10 @@ const QuestTaskManager = () => {
               <select
                 value={localForm.rarity}
                 onChange={(e) => setLocalForm(prev => ({ ...prev, rarity: e.target.value }))}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="base">Базовая</option>
-                <option value="rare">Редкая</option>
+                <option value="base" className="bg-gray-700 text-white">Базовая</option>
+                <option value="rare" className="bg-gray-700 text-white">Редкая</option>
               </select>
             </div>
             <div className="flex space-x-3">
@@ -1394,11 +1396,16 @@ const QuestTaskManager = () => {
           <select
             value={editingPackId || ''}
             onChange={(e) => setEditingPackId(e.target.value)}
-            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="">Выберите пачку...</option>
+            <option value="" className="bg-gray-700 text-white">Выберите пачку...</option>
             {packs.map(p => (
-              <option key={p.id} value={p.id} disabled={!canEditPack(p)}>
+              <option 
+                key={p.id} 
+                value={p.id} 
+                disabled={!canEditPack(p)}
+                className="bg-gray-700 text-white"
+              >
                 {p.title}{p.is_builtin ? ' (встроенная)' : ''} {!canEditPack(p) ? '- Нет доступа' : ''}
               </option>
             ))}
@@ -1463,11 +1470,11 @@ const QuestTaskManager = () => {
                           <select
                             value={card.rarity}
                             onChange={(e) => handleCardEdit(card.id, 'rarity', e.target.value)}
-                            className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                            className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             disabled={!canEditPack(packs.find(p => p.id === editingPackId))}
                           >
-                            <option value="base">Базовая</option>
-                            <option value="rare">Редкая</option>
+                            <option value="base" className="bg-gray-700 text-white">Базовая</option>
+                            <option value="rare" className="bg-gray-700 text-white">Редкая</option>
                           </select>
                         </div>
                         
@@ -2074,11 +2081,11 @@ const QuestTaskManager = () => {
               <select
                 value={localRewardFilter}
                 onChange={(e) => setLocalRewardFilter(e.target.value)}
-                className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm"
+                className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="all">Все награды</option>
-                <option value="pending">К получению</option>
-                <option value="claimed">Полученные</option>
+                <option value="all" className="bg-gray-700 text-white">Все награды</option>
+                <option value="pending" className="bg-gray-700 text-white">К получению</option>
+                <option value="claimed" className="bg-gray-700 text-white">Полученные</option>
               </select>
             </div>
             
@@ -2454,24 +2461,24 @@ const MyQuestsTab = () => {
             <select
               value={localStatusFilter}
               onChange={(e) => setLocalStatusFilter(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-yellow-400 appearance-none text-sm"
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-yellow-400 appearance-none text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="all">Все квесты</option>
-              <option value="pending">В ожидании</option>
-              <option value="in-progress">В процессе</option>
-              <option value="completed">Выполнено</option>
+              <option value="all" className="bg-gray-700 text-white">Все квесты</option>
+              <option value="pending" className="bg-gray-700 text-white">В ожидании</option>
+              <option value="in-progress" className="bg-gray-700 text-white">В процессе</option>
+              <option value="completed" className="bg-gray-700 text-white">Выполнено</option>
             </select>
           </div>
           
           <select
             value={localSortBy}
             onChange={(e) => setLocalSortBy(e.target.value)}
-            className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-400 text-sm"
+            className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-400 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="dueDate">По сроку</option>
-            <option value="created">По дате создания</option>
-            <option value="difficulty">По сложности</option>
-            <option value="alphabetical">По алфавиту</option>
+            <option value="dueDate" className="bg-gray-700 text-white">По сроку</option>
+            <option value="created" className="bg-gray-700 text-white">По дате создания</option>
+            <option value="difficulty" className="bg-gray-700 text-white">По сложности</option>
+            <option value="alphabetical" className="bg-gray-700 text-white">По алфавиту</option>
           </select>
         </div>
         
@@ -3089,11 +3096,11 @@ const MyQuestsTab = () => {
             <select
               value={newAssignedQuest.assignedTo || ''}
               onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, assignedTo: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white mb-4"
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">-- Выберите друга --</option>
+              <option value="" className="bg-gray-700 text-white">-- Выберите друга --</option>
               {friends.map(friend => (
-                <option key={friend.id} value={friend.id}>
+                <option key={friend.id} value={friend.id} className="bg-gray-700 text-white">
                   {friend.name}
                 </option>
               ))}
@@ -3103,10 +3110,10 @@ const MyQuestsTab = () => {
             <select
               value={assignedRewardPackId}
               onChange={(e) => setAssignedRewardPackId(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               {cardPacks.map(p => (
-                <option key={p.id} value={p.id}>{p.title}{p.is_builtin ? ' (встроенная)' : ''}</option>
+                <option key={p.id} value={p.id} className="bg-gray-700 text-white">{p.title}{p.is_builtin ? ' (встроенная)' : ''}</option>
               ))}
             </select>
           </div>
