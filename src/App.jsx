@@ -3503,8 +3503,7 @@ const tabs = [
   { id: 'rewards', label: 'Награды', icon: Trophy },
   { id: 'collection', label: 'Коллекция', icon: Award },
   { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
-  { id: 'friends', label: 'Друзья', icon: Users },
-  { id: 'profile', label: 'Профиль', icon: User }
+  { id: 'friends', label: 'Друзья', icon: Users }
 ];
 
 return (
@@ -3518,6 +3517,13 @@ return (
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Sword className="w-8 h-8 text-yellow-400" />
+            <button
+              onClick={() => handleTabChange('profile')}
+              className="hidden sm:flex items-center space-x-2 glass hover:glass-hover px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+            >
+              <Mail className="w-4 h-4 text-blue-400" />
+              <span className="text-white font-medium">Профиль</span>
+            </button>
             
             {/* Mobile menu button */}
             <button
