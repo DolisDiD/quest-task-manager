@@ -16,7 +16,7 @@ import {
   Plus, Sword, Trophy, Star, CheckCircle, Circle, ChevronDown, ChevronRight, 
   Target, Zap, Search, Filter, Calendar, User, Users, Gift,
   Mail, Lock, Save, X, UserPlus, Send, Award, Home, ListChecks,
-  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu, Settings, User, Crown, Key
+  Bell, Check, Eye, Edit2, Shield, LogOut, LogIn, Menu, Settings, Crown, Key
 } from 'lucide-react';
 
 // Импорты для системы ролей
