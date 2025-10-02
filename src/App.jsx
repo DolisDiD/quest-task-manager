@@ -425,7 +425,6 @@ const QuestTaskManager = () => {
             id,
             title,
             completed,
-            xp,
             order_index
           ),
           assigned_by_profile:profiles!quests_assigned_by_fkey(id, name, email),
@@ -448,7 +447,6 @@ const QuestTaskManager = () => {
           description: quest.description,
           type: quest.type,
           difficulty: quest.difficulty,
-          xp: quest.xp,
           reward: quest.reward,
           bonus: quest.bonus,
           completed: quest.completed,
@@ -468,8 +466,7 @@ const QuestTaskManager = () => {
             .map(st => ({
               id: st.id,
               title: st.title,
-              completed: st.completed || false,
-              xp: st.xp || 50
+              completed: st.completed || false
             })) : []
         }));
 
@@ -509,7 +506,6 @@ const QuestTaskManager = () => {
             questTitle: r.quest_title || 'Unknown Quest',
             reward: r.title,
             bonus: r.bonus,
-            xp: r.xp,
             earnedAt: new Date(r.earned_at),
             type: r.type,
             claimed: false
@@ -523,7 +519,6 @@ const QuestTaskManager = () => {
             questTitle: r.quest_title || 'Unknown Quest',
             reward: r.title,
             bonus: r.bonus,
-            xp: r.xp,
             earnedAt: new Date(r.earned_at),
             claimedAt: r.claimed_at ? new Date(r.claimed_at) : null,
             type: r.type,
@@ -1133,7 +1128,7 @@ const QuestTaskManager = () => {
       
     } catch (e) {
       console.error('❌ Error in grantCardsFromPack:', e);
-      addNotification(`Квест выполнен! Получено ${quest.xp} XP`, 'success');
+      addNotification('Квест выполнен!', 'success');
     }
   };
 
@@ -1653,7 +1648,6 @@ const QuestTaskManager = () => {
               quest_title: quest.title,
               title: `${subtask.title} - Выполнено`,
               bonus: null,
-              xp: subtask.xp,
               type: 'subtask',
               claimed: false,
               earned_at: new Date().toISOString()
@@ -1773,7 +1767,6 @@ const QuestTaskManager = () => {
           quest_title: quest.title,
           title: quest.reward || 'Quest Completed',
           bonus: quest.bonus,
-          xp: quest.xp,
           type: 'main',
           claimed: false
         };
@@ -1997,7 +1990,7 @@ const QuestTaskManager = () => {
                   </div>
                   <div className="flex items-center space-x-1">
                     <Zap className="w-3 h-3 text-blue-400" />
-                    <span className="text-blue-400 text-sm">{subtask.xp}</span>
+                    <span className="text-blue-400 text-sm">✓</span>
                   </div>
                 </div>
               ))}
@@ -2234,7 +2227,7 @@ const MyQuestsTab = () => {
           comparison = difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
           break;
         case 'xp':
-          comparison = a.xp - b.xp;
+          comparison = 0; // XP sorting removed
           break;
         case 'alphabetical':
           comparison = a.title.localeCompare(b.title);

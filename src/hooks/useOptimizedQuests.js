@@ -76,7 +76,7 @@ export const useOptimizedQuests = (userId) => {
           comparison = dateA - dateB;
           break;
         case 'xp':
-          comparison = a.xp - b.xp;
+          comparison = 0; // XP sorting removed
           break;
         case 'difficulty':
           const difficultyOrder = { common: 0, rare: 1, epic: 2, legendary: 3 };
@@ -103,7 +103,7 @@ export const useOptimizedQuests = (userId) => {
     const overdue = quests.filter(q => 
       !q.completed && q.dueDate && new Date(q.dueDate) < new Date()
     ).length;
-    const totalXp = quests.reduce((sum, q) => sum + (q.completed ? q.xp : 0), 0);
+    const totalXp = 0; // XP system removed
 
     return {
       total,
@@ -148,7 +148,6 @@ export const useOptimizedQuests = (userId) => {
         description: quest.description,
         type: quest.type,
         difficulty: quest.difficulty,
-        xp: quest.xp,
         reward: quest.reward,
         bonus: quest.bonus,
         dueDate: quest.due_date,
