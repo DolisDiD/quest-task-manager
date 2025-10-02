@@ -3472,17 +3472,30 @@ if (!user) {
             )}
 
             {authMode === 'register' && (
-              <div>
-                <label className="block text-sm font-medium mb-2">Подтвердите пароль</label>
-                <input
-                  type="password"
-                  required
-                  value={authForm.confirmPassword}
-                  onChange={(e) => setAuthForm({ ...authForm, confirmPassword: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                  placeholder="••••••••"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Пароль</label>
+                  <input
+                    type="password"
+                    required
+                    value={authForm.password}
+                    onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Подтвердите пароль</label>
+                  <input
+                    type="password"
+                    required
+                    value={authForm.confirmPassword}
+                    onChange={(e) => setAuthForm({ ...authForm, confirmPassword: e.target.value })}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </>
             )}
 
             <button
