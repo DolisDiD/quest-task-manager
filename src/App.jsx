@@ -1347,7 +1347,7 @@ const QuestTaskManager = () => {
 
   const PackManagerTab = () => {
     const packs = cardPacks;
-    const isAdmin = user?.id === 1; // Admin user ID is 1
+    const isAdmin = userRole?.role_type === 'admin'; // Use role system instead of hardcoded ID
     
     // Check if user can edit a pack
     const canEditPack = (pack) => {
