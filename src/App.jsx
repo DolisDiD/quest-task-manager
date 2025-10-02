@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import BottomSheet from './components/UI/BottomSheet';
@@ -86,9 +86,24 @@ const NotificationSystem = ({ notifications, onClose }) => {
 const QuestTaskManager = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [user, setUser] = useState(null);
+  const [tabLoading, setTabLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+
+  // Функция переключения вкладок с загрузкой
+  const handleTabChange = useCallback(async (tabId) => {
+    if (tabId === activeTab) return;
+    
+    setTabLoading(true);
+    setActiveTab(tabId);
+    setMobileMenuOpen(false);
+    
+    // Небольшая задержка для плавности перехода
+    setTimeout(() => {
+      setTabLoading(false);
+    }, 300);
+  }, [activeTab]);
   
   // Состояние для системы ролей
   const [showActivateCodeModal, setShowActivateCodeModal] = useState(false);
@@ -2189,10 +2204,12 @@ const MyQuestsTab = () => {
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   
-  const myQuests = getMyQuests();
+  // Мемоизированные квесты для предотвращения лишних перерендеров
+  const myQuests = useMemo(() => getMyQuests(), [quests, user?.id]);
   const allMyQuests = myQuests;
   
-  const filterQuests = (quests) => {
+  // Мемоизированная фильтрация квестов
+  const filterQuests = useCallback((quests) => {
     let filtered = quests;
     
     if (debouncedSearch.trim()) {
@@ -2207,9 +2224,9 @@ const MyQuestsTab = () => {
     }
     
     return filtered;
-  };
+  }, [debouncedSearch, localStatusFilter]);
   
-  const sortQuests = (quests) => {
+  const sortQuests = useCallback((quests) => {
     const sorted = [...quests].sort((a, b) => {
       let comparison = 0;
       
@@ -2240,13 +2257,15 @@ const MyQuestsTab = () => {
     });
     
     return sorted;
-  };
+  }, [localSortBy, localSortOrder]);
   
-  // Apply sub-tab filtering before other filters
-  const subtabFiltered = (activeMyQuestsSubtab === 'active' || hideCompletedMyQuests)
-    ? allMyQuests.filter(q => !q.completed)
-    : allMyQuests.filter(q => q.completed);
-  const filteredAndSortedQuests = sortQuests(filterQuests(subtabFiltered));
+  // Мемоизированная фильтрация и сортировка квестов
+  const filteredAndSortedQuests = useMemo(() => {
+    const subtabFiltered = (activeMyQuestsSubtab === 'active' || hideCompletedMyQuests)
+      ? allMyQuests.filter(q => !q.completed)
+      : allMyQuests.filter(q => q.completed);
+    return sortQuests(filterQuests(subtabFiltered));
+  }, [allMyQuests, activeMyQuestsSubtab, hideCompletedMyQuests, filterQuests, localSortBy, localSortOrder]);
   
   const addSubtask = () => {
     if (newSubtaskTitle.trim()) {
@@ -3503,7 +3522,7 @@ return (
           <div className="flex items-center space-x-4">
             <Sword className="w-8 h-8 text-yellow-400" />
             <button
-              onClick={() => setActiveTab('profile')}
+              onClick={() => handleTabChange('profile')}
               className="hidden sm:flex items-center space-x-2 glass hover:glass-hover px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
             >
               <Mail className="w-4 h-4 text-blue-400" />
@@ -3558,10 +3577,7 @@ return (
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1 }}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setMobileMenuOpen(false);
-              }}
+              onClick={() => handleTabChange(tab.id)}
               className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 relative ${
                 activeTab === tab.id
                   ? 'glass text-primary-400 shadow-glow'
@@ -3663,21 +3679,21 @@ return (
             <Heading3 animate={true} className="mb-4">Быстрые действия</Heading3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <button
-                onClick={() => setActiveTab('my-quests')}
+                onClick={() => handleTabChange('my-quests')}
                 className="gradient-bg hover:shadow-glow rounded-lg p-4 transition-all duration-300 hover:scale-105"
               >
                 <ListChecks className="w-6 h-6 mb-2 mx-auto" />
                 <div className="text-sm">Мои квесты</div>
               </button>
               <button
-                onClick={() => setActiveTab('rewards')}
+                onClick={() => handleTabChange('rewards')}
                 className="gradient-bg-secondary hover:shadow-glow-purple rounded-lg p-4 transition-all duration-300 hover:scale-105"
               >
                 <Trophy className="w-6 h-6 mb-2 mx-auto" />
                 <div className="text-sm">Награды</div>
               </button>
               <button
-                onClick={() => setActiveTab('friends')}
+                onClick={() => handleTabChange('friends')}
                 className="gradient-bg-accent hover:shadow-glow-cyan rounded-lg p-4 transition-all duration-300 hover:scale-105"
               >
                 <Users className="w-6 h-6 mb-2 mx-auto" />
@@ -3879,7 +3895,16 @@ return (
       {activeTab === 'rewards' && <RewardsTab />}
       {activeTab === 'collection' && <CollectionTab />}
       {activeTab === 'pack-manager' && <PackManagerTab />}
-      {activeTab === 'my-quests' && <MyQuestsTab />}
+      {activeTab === 'my-quests' && (
+        tabLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="ml-3 text-gray-300">Загрузка квестов...</span>
+          </div>
+        ) : (
+          <MyQuestsTab />
+        )
+      )}
       {activeTab === 'friends' && <FriendsTab />}
       {activeTab === 'assigned-quests' && <AssignedQuestsTab />}
       

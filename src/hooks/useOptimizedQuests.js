@@ -131,7 +131,6 @@ export const useOptimizedQuests = (userId) => {
             id,
             title,
             completed,
-            xp,
             order_index
           ),
           assigned_by_profile:profiles!quests_assigned_by_fkey(id, name, email),
