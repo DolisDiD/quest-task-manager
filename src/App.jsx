@@ -628,10 +628,13 @@ const QuestTaskManager = () => {
 
   const updateCard = async (cardId, updates) => {
     try {
-      const { error } = await supabase
+      console.log('💾 Updating card:', cardId, 'with updates:', updates);
+      
+      const { data, error } = await supabase
         .from('cards')
         .update(updates)
-        .eq('id', cardId);
+        .eq('id', cardId)
+        .select();
       
       if (error) {
         console.error('❌ Error updating card:', error);
@@ -639,6 +642,7 @@ const QuestTaskManager = () => {
         return false;
       }
       
+      console.log('✅ Card updated successfully:', data);
       addNotification('Карточка обновлена', 'success');
       return true;
     } catch (e) {
@@ -1369,10 +1373,22 @@ const QuestTaskManager = () => {
     };
 
     const handleImageUpload = async (cardId, file) => {
+      console.log('🔄 Starting image upload process for card:', cardId);
       const imageUrl = await uploadCardImage(cardId, file, editingPackId);
+      console.log('📸 Upload result:', imageUrl);
+      
       if (imageUrl) {
-        await updateCard(cardId, { image_url: imageUrl });
-        await loadPackCards(editingPackId);
+        console.log('💾 Updating card with image URL:', imageUrl);
+        const updateResult = await updateCard(cardId, { image_url: imageUrl });
+        console.log('✅ Update result:', updateResult);
+        
+        if (updateResult) {
+          console.log('🔄 Reloading pack cards...');
+          await loadPackCards(editingPackId);
+          console.log('✅ Pack cards reloaded');
+        }
+      } else {
+        console.log('❌ No image URL returned from upload');
       }
     };
 
