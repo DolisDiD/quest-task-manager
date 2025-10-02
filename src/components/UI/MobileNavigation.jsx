@@ -15,7 +15,6 @@ const MobileNavigation = ({
     { id: 'dashboard', label: 'Главная', icon: Home },
     { id: 'my-quests', label: 'Квесты', icon: ListChecks },
     { id: 'rewards', label: 'Награды', icon: Trophy },
-    { id: 'collection', label: 'Коллекция', icon: Award },
     { id: 'assigned-quests', label: 'Поставленные', icon: Send },
     { id: 'friends', label: 'Друзья', icon: Users, badge: friendRequestsCount }
   ];

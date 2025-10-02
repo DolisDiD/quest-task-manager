@@ -3501,7 +3501,6 @@ const tabs = [
   { id: 'dashboard', label: 'Главная', icon: Home },
   { id: 'my-quests', label: 'Мои задания', icon: ListChecks },
   { id: 'rewards', label: 'Награды', icon: Trophy },
-  { id: 'collection', label: 'Коллекция', icon: Award },
   { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
   { id: 'friends', label: 'Друзья', icon: Users }
 ];
@@ -3536,13 +3535,13 @@ return (
           
           <div className="flex items-center space-x-3 sm:space-x-6">
             
-            {/* Achievements button */}
+            {/* Collection button */}
             <button
-              onClick={() => setShowAchievements(true)}
+              onClick={() => handleTabChange('collection')}
               className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-2 sm:px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
             >
-              <Trophy className="w-4 h-4" />
-              <span className="text-sm">{currentUser.completedQuests}</span>
+              <Award className="w-4 h-4" />
+              <span className="hidden sm:inline">Коллекция</span>
             </button>
 
             {/* Logout button */}
@@ -3649,34 +3648,34 @@ return (
           
           <div className="glass-card p-4 sm:p-6">
             <Heading3 animate={true} className="mb-4">Быстрые действия</Heading3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <button
                 onClick={() => handleTabChange('my-quests')}
-                className="gradient-bg hover:shadow-glow rounded-lg p-4 transition-all duration-300 hover:scale-105"
+                className="gradient-bg hover:shadow-glow rounded-lg p-3 transition-all duration-300 hover:scale-105"
               >
-                <ListChecks className="w-6 h-6 mb-2 mx-auto" />
-                <div className="text-sm">Мои квесты</div>
+                <ListChecks className="w-5 h-5 mb-1 mx-auto" />
+                <div className="text-xs">Мои задания</div>
               </button>
               <button
                 onClick={() => handleTabChange('rewards')}
-                className="gradient-bg-secondary hover:shadow-glow-purple rounded-lg p-4 transition-all duration-300 hover:scale-105"
+                className="gradient-bg-secondary hover:shadow-glow-purple rounded-lg p-3 transition-all duration-300 hover:scale-105"
               >
-                <Trophy className="w-6 h-6 mb-2 mx-auto" />
-                <div className="text-sm">Награды</div>
+                <Trophy className="w-5 h-5 mb-1 mx-auto" />
+                <div className="text-xs">Награды</div>
+              </button>
+              <button
+                onClick={() => handleTabChange('assigned-quests')}
+                className="gradient-bg-accent hover:shadow-glow-cyan rounded-lg p-3 transition-all duration-300 hover:scale-105"
+              >
+                <Send className="w-5 h-5 mb-1 mx-auto" />
+                <div className="text-xs">Поставленные задачи</div>
               </button>
               <button
                 onClick={() => handleTabChange('friends')}
-                className="gradient-bg-accent hover:shadow-glow-cyan rounded-lg p-4 transition-all duration-300 hover:scale-105"
+                className="gradient-bg-accent hover:shadow-glow-cyan rounded-lg p-3 transition-all duration-300 hover:scale-105"
               >
-                <Users className="w-6 h-6 mb-2 mx-auto" />
-                <div className="text-sm">Друзья</div>
-              </button>
-              <button
-                onClick={() => setShowAchievements(true)}
-                className="gradient-bg-secondary hover:shadow-glow-purple rounded-lg p-4 transition-all duration-300 hover:scale-105"
-              >
-                <Award className="w-6 h-6 mb-2 mx-auto" />
-                <div className="text-sm">Достижения</div>
+                <Users className="w-5 h-5 mb-1 mx-auto" />
+                <div className="text-xs">Друзья</div>
               </button>
             </div>
           </div>
