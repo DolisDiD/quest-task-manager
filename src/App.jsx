@@ -628,8 +628,6 @@ const QuestTaskManager = () => {
 
   const updateCard = async (cardId, updates) => {
     try {
-      console.log('💾 Updating card:', cardId, 'with updates:', updates);
-      
       const { data, error } = await supabase
         .from('cards')
         .update(updates)
@@ -642,7 +640,6 @@ const QuestTaskManager = () => {
         return false;
       }
       
-      console.log('✅ Card updated successfully:', data);
       addNotification('Карточка обновлена', 'success');
       return true;
     } catch (e) {
@@ -1363,6 +1360,7 @@ const QuestTaskManager = () => {
   const PackManagerTab = () => {
     const packs = cardPacks;
     const isAdmin = userRole?.role_type === 'admin'; // Use role system instead of hardcoded ID
+    const [editingCards, setEditingCards] = useState({});
     
     // Check if user can edit a pack
     const canEditPack = (pack) => {
@@ -1373,22 +1371,14 @@ const QuestTaskManager = () => {
     };
 
     const handleImageUpload = async (cardId, file) => {
-      console.log('🔄 Starting image upload process for card:', cardId);
       const imageUrl = await uploadCardImage(cardId, file, editingPackId);
-      console.log('📸 Upload result:', imageUrl);
       
       if (imageUrl) {
-        console.log('💾 Updating card with image URL:', imageUrl);
         const updateResult = await updateCard(cardId, { image_url: imageUrl });
-        console.log('✅ Update result:', updateResult);
         
         if (updateResult) {
-          console.log('🔄 Reloading pack cards...');
           await loadPackCards(editingPackId);
-          console.log('✅ Pack cards reloaded');
         }
-      } else {
-        console.log('❌ No image URL returned from upload');
       }
     };
 
@@ -1396,6 +1386,34 @@ const QuestTaskManager = () => {
       const success = await updateCard(cardId, { [field]: value });
       if (success) {
         await loadPackCards(editingPackId);
+      }
+    };
+
+    const handleCardInputChange = (cardId, field, value) => {
+      setEditingCards(prev => ({
+        ...prev,
+        [cardId]: {
+          ...prev[cardId],
+          [field]: value
+        }
+      }));
+    };
+
+    const handleCardInputBlur = async (cardId, field) => {
+      const value = editingCards[cardId]?.[field];
+      if (value !== undefined) {
+        await handleCardEdit(cardId, field, value);
+        // Очищаем локальное состояние после сохранения
+        setEditingCards(prev => {
+          const newState = { ...prev };
+          if (newState[cardId]) {
+            delete newState[cardId][field];
+            if (Object.keys(newState[cardId]).length === 0) {
+              delete newState[cardId];
+            }
+          }
+          return newState;
+        });
       }
     };
 
@@ -1483,8 +1501,9 @@ const QuestTaskManager = () => {
                           <label className="block text-xs text-gray-400 mb-1">Название</label>
                           <input
                             type="text"
-                            value={card.title}
-                            onChange={(e) => handleCardEdit(card.id, 'title', e.target.value)}
+                            value={editingCards[card.id]?.title !== undefined ? editingCards[card.id].title : card.title}
+                            onChange={(e) => handleCardInputChange(card.id, 'title', e.target.value)}
+                            onBlur={() => handleCardInputBlur(card.id, 'title')}
                             className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
                             disabled={!canEditPack(packs.find(p => p.id === editingPackId))}
                           />
@@ -1493,8 +1512,9 @@ const QuestTaskManager = () => {
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Редкость</label>
                           <select
-                            value={card.rarity}
-                            onChange={(e) => handleCardEdit(card.id, 'rarity', e.target.value)}
+                            value={editingCards[card.id]?.rarity !== undefined ? editingCards[card.id].rarity : card.rarity}
+                            onChange={(e) => handleCardInputChange(card.id, 'rarity', e.target.value)}
+                            onBlur={() => handleCardInputBlur(card.id, 'rarity')}
                             className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             disabled={!canEditPack(packs.find(p => p.id === editingPackId))}
                           >
