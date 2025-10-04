@@ -1105,6 +1105,13 @@ const QuestTaskManager = () => {
     try {
       console.log('🎁 Granting cards for quest:', quest.title, 'difficulty:', difficulty);
       
+      // Проверяем, что квест был поставлен другом (не самим пользователем)
+      if (!quest.assignedBy || quest.assignedBy === user.id) {
+        console.log('ℹ️ Quest was self-assigned, skipping card rewards');
+        addNotification(`Квест выполнен!`, 'success');
+        return;
+      }
+      
       const packId = quest.rewardPackId || defaultPackId;
       console.log('📦 Using pack ID:', packId);
       
@@ -1765,7 +1772,7 @@ const QuestTaskManager = () => {
           console.log('✅ Main quest reward created:', createdMainReward);
         }
 
-        // Grant collection cards from pack according to difficulty
+        // Grant collection cards from pack according to difficulty (only if assigned by friend)
         await grantCardsFromPack(quest, quest.difficulty);
       } else if (!isQuestComplete && quest.completed) {
         const { error: deleteMainRewardError } = await supabase
@@ -1846,7 +1853,7 @@ const QuestTaskManager = () => {
           console.error('❌ Error creating reward:', rewardError);
         }
 
-        // Grant collection cards from pack for single-step quests
+        // Grant collection cards from pack for single-step quests (only if assigned by friend)
         await grantCardsFromPack(quest, quest.difficulty);
       }
       else if (!newCompletedStatus && quest.completed) {
