@@ -23,40 +23,46 @@ DECLARE
   v_user_card RECORD;
   v_new_qty INTEGER;
 BEGIN
-  -- Определяем веса редкости в зависимости от сложности
-  CASE p_difficulty
-    WHEN 'common' THEN
-      v_rarity_weights := '{"base": 0.7, "rare": 0.25, "epic": 0.05, "legendary": 0.0}'::JSONB;
-    WHEN 'rare' THEN
-      v_rarity_weights := '{"base": 0.4, "rare": 0.45, "epic": 0.13, "legendary": 0.02}'::JSONB;
-    WHEN 'epic' THEN
-      v_rarity_weights := '{"base": 0.2, "rare": 0.35, "epic": 0.35, "legendary": 0.1}'::JSONB;
-    WHEN 'legendary' THEN
-      v_rarity_weights := '{"base": 0.1, "rare": 0.25, "epic": 0.4, "legendary": 0.25}'::JSONB;
-    ELSE
-      v_rarity_weights := '{"base": 0.5, "rare": 0.3, "epic": 0.15, "legendary": 0.05}'::JSONB;
-  END CASE;
-
-  -- Генерируем случайное число для определения редкости
+  -- Выбираем карточку с учетом индивидуальных весов
+  -- 25 базовых карточек по 3.8% каждая = 95%
+  -- 5 редких карточек по 1% каждая = 5%
+  -- Итого: 100% вероятность выпадения карточки
+  
+  -- Генерируем случайное число от 0 до 1
   v_random := random();
-  v_cumulative_weight := 0;
-  v_rarity := 'base'; -- значение по умолчанию
-
-  -- Определяем редкость на основе весов
-  FOR v_rarity IN SELECT jsonb_object_keys(v_rarity_weights) LOOP
-    v_cumulative_weight := v_cumulative_weight + (v_rarity_weights->v_rarity)::NUMERIC;
-    IF v_random <= v_cumulative_weight THEN
-      EXIT;
-    END IF;
-  END LOOP;
-
-  -- Выбираем случайную карточку указанной редкости из пачки
-  SELECT c.id, c.title, c.rarity
+  
+  -- Выбираем карточку на основе кумулятивных весов
+  WITH weighted_cards AS (
+    SELECT 
+      c.id,
+      c.title,
+      c.rarity,
+      CASE 
+        WHEN c.rarity = 'common' THEN 0.038
+        WHEN c.rarity = 'rare' THEN 0.01
+        ELSE 0
+      END as weight
+    FROM cards c
+    WHERE c.pack_id = p_pack_id 
+      AND c.rarity IN ('common', 'rare')
+  ),
+  cumulative_weights AS (
+    SELECT 
+      id,
+      title,
+      rarity,
+      weight,
+      SUM(weight) OVER (ORDER BY id) as cumulative_weight
+    FROM weighted_cards
+  )
+  SELECT 
+    cw.id,
+    cw.title,
+    cw.rarity
   INTO v_card
-  FROM cards c
-  WHERE c.pack_id = p_pack_id 
-    AND c.rarity = v_rarity
-  ORDER BY random()
+  FROM cumulative_weights cw
+  WHERE cw.cumulative_weight >= v_random
+  ORDER BY cw.cumulative_weight ASC
   LIMIT 1;
 
   -- Если карточка найдена, добавляем её в коллекцию пользователя
@@ -69,7 +75,7 @@ BEGIN
     IF v_user_card IS NOT NULL THEN
       -- Увеличиваем количество
       CASE v_rarity
-        WHEN 'base' THEN
+        WHEN 'common' THEN
           v_new_qty := v_user_card.qty_base + 1;
           UPDATE user_cards 
           SET qty_base = v_new_qty, updated_at = NOW()
@@ -79,75 +85,25 @@ BEGIN
           UPDATE user_cards 
           SET qty_rare = v_new_qty, updated_at = NOW()
           WHERE user_id = p_user_id AND card_id = v_card.id;
-        WHEN 'epic' THEN
-          v_new_qty := v_user_card.qty_epic + 1;
-          UPDATE user_cards 
-          SET qty_epic = v_new_qty, updated_at = NOW()
-          WHERE user_id = p_user_id AND card_id = v_card.id;
-        WHEN 'legendary' THEN
-          v_new_qty := v_user_card.qty_legendary + 1;
-          UPDATE user_cards 
-          SET qty_legendary = v_new_qty, updated_at = NOW()
-          WHERE user_id = p_user_id AND card_id = v_card.id;
       END CASE;
     ELSE
       -- Создаем новую запись
+      v_new_qty := 1;
       INSERT INTO user_cards (user_id, card_id, qty_base, qty_rare, qty_epic, qty_legendary, created_at, updated_at)
       VALUES (
         p_user_id, 
         v_card.id,
-        CASE WHEN v_rarity = 'base' THEN 1 ELSE 0 END,
+        CASE WHEN v_rarity = 'common' THEN 1 ELSE 0 END,
         CASE WHEN v_rarity = 'rare' THEN 1 ELSE 0 END,
-        CASE WHEN v_rarity = 'epic' THEN 1 ELSE 0 END,
-        CASE WHEN v_rarity = 'legendary' THEN 1 ELSE 0 END,
+        0, -- epic и legendary создаются только через слияние
+        0,
         NOW(),
         NOW()
       );
     END IF;
 
-    -- Проверяем возможность слияния (если у пользователя 3+ карточки одной редкости)
+    -- Слияние карточек временно отключено
     v_upgraded := NULL;
-    CASE v_rarity
-      WHEN 'base' THEN
-        IF v_new_qty >= 3 THEN
-          v_upgraded := jsonb_build_object(
-            'card_id', v_card.id,
-            'from', 'base',
-            'to', 'rare',
-            'count', 3
-          );
-          -- Уменьшаем количество базовых карточек
-          UPDATE user_cards 
-          SET qty_base = qty_base - 3, qty_rare = qty_rare + 1, updated_at = NOW()
-          WHERE user_id = p_user_id AND card_id = v_card.id;
-        END IF;
-      WHEN 'rare' THEN
-        IF v_new_qty >= 3 THEN
-          v_upgraded := jsonb_build_object(
-            'card_id', v_card.id,
-            'from', 'rare',
-            'to', 'epic',
-            'count', 3
-          );
-          -- Уменьшаем количество редких карточек
-          UPDATE user_cards 
-          SET qty_rare = qty_rare - 3, qty_epic = qty_epic + 1, updated_at = NOW()
-          WHERE user_id = p_user_id AND card_id = v_card.id;
-        END IF;
-      WHEN 'epic' THEN
-        IF v_new_qty >= 3 THEN
-          v_upgraded := jsonb_build_object(
-            'card_id', v_card.id,
-            'from', 'epic',
-            'to', 'legendary',
-            'count', 3
-          );
-          -- Уменьшаем количество эпических карточек
-          UPDATE user_cards 
-          SET qty_epic = qty_epic - 3, qty_legendary = qty_legendary + 1, updated_at = NOW()
-          WHERE user_id = p_user_id AND card_id = v_card.id;
-        END IF;
-    END CASE;
 
     -- Возвращаем результат
     RETURN QUERY SELECT v_card.id, v_rarity::TEXT, v_upgraded;
@@ -162,4 +118,4 @@ $$;
 GRANT EXECUTE ON FUNCTION draw_card(UUID, UUID, TEXT) TO authenticated;
 
 -- Комментарий к функции
-COMMENT ON FUNCTION draw_card(UUID, UUID, TEXT) IS 'Выдает карточку пользователю при выполнении квеста с учетом сложности и весов редкости';
+COMMENT ON FUNCTION draw_card(UUID, UUID, TEXT) IS 'Выдает карточку пользователю при выполнении квеста. 100% вероятность выпадения: 25 common карточек по 3.8% каждая (95%), 5 rare карточек по 1% каждая (5%)';
