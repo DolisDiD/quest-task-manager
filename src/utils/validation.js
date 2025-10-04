@@ -45,7 +45,16 @@ export const validators = {
     if (!value) return true; // Дата необязательна
     const date = new Date(value);
     if (isNaN(date.getTime())) return 'Некорректная дата';
-    if (date < new Date()) return 'Дата не может быть в прошлом';
+    
+    // Получаем текущую дату без времени (только дата)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Устанавливаем время для введенной даты в начало дня для корректного сравнения
+    const inputDate = new Date(date);
+    inputDate.setHours(0, 0, 0, 0);
+    
+    if (inputDate < today) return 'Дата не может быть в прошлом';
     return true;
   },
 
