@@ -1669,7 +1669,7 @@ const QuestTaskManager = () => {
     }
   };
 
-  const toggleSubtask = async (questId, subtaskId) => {
+  const toggleSubtask = useCallback(async (questId, subtaskId) => {
     try {
       const quest = quests.find(q => q.id === questId);
       const subtask = quest?.subtasks.find(st => st.id === subtaskId);
@@ -1793,7 +1793,8 @@ const QuestTaskManager = () => {
             ...q,
             subtasks: updatedSubtasks,
             progress: completedCount,
-            completed: isQuestComplete
+            completed: isQuestComplete,
+            expanded: q.expanded // Сохраняем состояние развернутости
           };
         }
         return q;
@@ -1807,9 +1808,9 @@ const QuestTaskManager = () => {
       console.error('❌ Error in toggleSubtask:', error);
       alert('Ошибка: ' + error.message);
     }
-  };
+  }, [quests, user?.id, addNotification]);
 
-  const toggleQuest = async (questId) => {
+  const toggleQuest = useCallback(async (questId) => {
     try {
       const quest = quests.find(q => q.id === questId);
       if (!quest || quest.subtasks.length > 0) {
@@ -1883,7 +1884,12 @@ const QuestTaskManager = () => {
             }));
           }
           
-          return { ...q, completed: newCompletedStatus, progress: newCompletedStatus ? 1 : 0 };
+          return { 
+            ...q, 
+            completed: newCompletedStatus, 
+            progress: newCompletedStatus ? 1 : 0,
+            expanded: q.expanded // Сохраняем состояние развернутости
+          };
         }
         return q;
       }));
@@ -1894,16 +1900,16 @@ const QuestTaskManager = () => {
       console.error('❌ Error in toggleQuest:', error);
       alert('Ошибка: ' + error.message);
     }
-  };
+  }, [quests, user?.id, addNotification]);
 
-  const expandQuest = (questId) => {
+  const expandQuest = useCallback((questId) => {
     setQuests(quests.map(quest => {
       if (quest.id === questId) {
         return { ...quest, expanded: !quest.expanded };
       }
       return quest;
     }));
-  };
+  }, [quests]);
 
   const getProgressPercentage = (quest) => {
     if (quest.totalSteps === 0) return quest.completed ? 100 : 0;
