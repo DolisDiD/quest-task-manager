@@ -1873,6 +1873,46 @@ const QuestTaskManager = () => {
               })
             );
 
+            // Создаем награду за выполнение квеста
+            if (newCompletedStatus && !quest.completed) {
+              console.log('🎁 Creating main quest reward for:', quest.title);
+              supabase
+                .from('rewards')
+                .insert({
+                  user_id: user.id,
+                  quest_id: quest.id,
+                  quest_title: quest.title,
+                  title: quest.reward || 'Квест выполнен!',
+                  bonus: quest.bonus,
+                  type: 'main',
+                  claimed: false,
+                  earned_at: new Date().toISOString()
+                })
+                .then(({ error: mainRewardError }) => {
+                  if (mainRewardError) {
+                    console.error('❌ Error creating main reward:', mainRewardError);
+                  } else {
+                    console.log('✅ Main quest reward created');
+                  }
+                  
+                  // Grant collection cards from pack according to difficulty (only if assigned by friend)
+                  grantCardsFromPack(quest, quest.difficulty);
+                });
+            } else if (!newCompletedStatus && quest.completed) {
+              // Удаляем награду при отмене выполнения
+              supabase
+                .from('rewards')
+                .delete()
+                .eq('quest_id', questId)
+                .eq('type', 'main')
+                .eq('claimed', false)
+                .then(({ error: deleteMainRewardError }) => {
+                  if (deleteMainRewardError) {
+                    console.error('❌ Error deleting main reward:', deleteMainRewardError);
+                  }
+                });
+            }
+
             // Обновляем награды
             loadRewards();
           });
