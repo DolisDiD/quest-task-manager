@@ -1116,6 +1116,12 @@ const QuestTaskManager = () => {
       const packId = quest.rewardPackId || defaultPackId;
       console.log('📦 Using pack ID:', packId);
       
+      // Убеждаемся, что карточки загружены
+      if (Object.keys(cardsById).length === 0) {
+        console.log('⚠️ Cards not loaded, loading packs first...');
+        await loadPacks();
+      }
+      
       // Проверяем, существует ли RPC функция
       const { data, error } = await supabase.rpc('draw_card', {
         p_user_id: user.id,
@@ -1141,6 +1147,8 @@ const QuestTaskManager = () => {
       
       const drops = Array.isArray(data) ? data : [];
       console.log('🎯 Card drops:', drops);
+      console.log('🎯 Drops length:', drops.length);
+      console.log('🎯 CardsById keys:', Object.keys(cardsById));
       
       if (drops.length === 0) {
         addNotification(`Квест выполнен!`, 'success');
@@ -1150,7 +1158,8 @@ const QuestTaskManager = () => {
       drops.forEach(d => {
         const card = cardsById[d.card_id];
         const title = card?.title || 'Неизвестная карточка';
-        addNotification(`Выпала карточка: ${title} (${d.rarity})`, 'success');
+        const rarity = d.rarity || 'base';
+        addNotification(`Выпала карточка: ${title} (${rarity})`, 'success');
         
         if (d.upgraded && d.upgraded !== null) {
           const upCard = cardsById[d.upgraded.card_id];
