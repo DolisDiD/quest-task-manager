@@ -48,12 +48,12 @@ BEGIN
   ),
   cumulative_weights AS (
     SELECT 
-      id,
-      title,
-      rarity,
-      weight,
-      SUM(weight) OVER (ORDER BY id) as cumulative_weight
-    FROM weighted_cards
+      wc.id,
+      wc.title,
+      wc.rarity,
+      wc.weight,
+      SUM(wc.weight) OVER (ORDER BY wc.id) as cumulative_weight
+    FROM weighted_cards wc
   )
   SELECT 
     cw.id,
