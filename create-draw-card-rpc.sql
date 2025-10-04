@@ -50,7 +50,7 @@ BEGIN
     SELECT 
       wc.id,
       wc.title,
-      wc.rarity,
+      wc.rarity as card_rarity,
       wc.weight,
       SUM(wc.weight) OVER (ORDER BY wc.id) as cumulative_weight
     FROM weighted_cards wc
@@ -58,7 +58,7 @@ BEGIN
   SELECT 
     cw.id,
     cw.title,
-    cw.rarity
+    cw.card_rarity
   INTO v_card
   FROM cumulative_weights cw
   WHERE cw.cumulative_weight >= v_random
@@ -68,7 +68,7 @@ BEGIN
   -- Если карточка найдена, добавляем её в коллекцию пользователя
   IF v_card.id IS NOT NULL THEN
     -- Получаем редкость карточки
-    v_rarity := v_card.rarity;
+    v_rarity := v_card.card_rarity;
     
     -- Проверяем, есть ли уже эта карточка у пользователя
     SELECT * INTO v_user_card
