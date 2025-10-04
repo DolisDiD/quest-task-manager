@@ -3595,7 +3595,7 @@ return (
             {/* Collection button */}
             <button
               onClick={() => handleTabChange('collection')}
-              className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-2 sm:px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
+              className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 px-2 sm:px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
             >
               <Award className="w-4 h-4" />
               <span className="hidden sm:inline">Коллекция</span>
