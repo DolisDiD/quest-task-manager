@@ -1,7 +1,8 @@
-import React, { Suspense, lazy, memo } from 'react';
+import React, { Suspense, lazy, memo, useCallback } from 'react';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useOptimizedState, useLoadingState } from '../hooks/useOptimizedState';
 import { useNotificationState } from '../hooks/useOptimizedState';
+import { useRoles } from '../hooks/useRoles';
 
 // Lazy loading компонентов для code splitting
 const Dashboard = lazy(() => import('./Dashboard/Dashboard'));
@@ -12,6 +13,7 @@ const PackManagerTab = lazy(() => import('./PackManager/PackManagerTab'));
 const FriendsTab = lazy(() => import('./Friends/FriendsTab'));
 const AdminPanel = lazy(() => import('./Admin/AdminPanel'));
 const InvitationCodesTab = lazy(() => import('./InvitationCodes/InvitationCodesTab'));
+const ProfileTab = lazy(() => import('./Profile/ProfileTab'));
 
 // Мемоизированные компоненты
 const Header = memo(lazy(() => import('./Layout/Header')));
@@ -23,9 +25,19 @@ const OptimizedApp = () => {
   const [activeTab, setActiveTab] = useOptimizedState('dashboard');
   const [user, setUser] = useOptimizedState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useOptimizedState(false);
+  const [currentUser, setCurrentUser] = useOptimizedState({
+    name: '',
+    email: '',
+    level: 2,
+    completedQuests: 0,
+    avatar: 'Hero'
+  });
+  const [friends, setFriends] = useOptimizedState([]);
+  const [showActivateCodeModal, setShowActivateCodeModal] = useOptimizedState(false);
   
   const { notifications, addNotification, removeNotification } = useNotificationState();
   const { isLoading, error, startLoading, stopLoading, setLoadingError } = useLoadingState();
+  const { userRole, hasPermission } = useRoles(user?.id);
 
   // Мемоизированные обработчики
   const handleTabChange = useCallback((tabId) => {
@@ -44,6 +56,19 @@ const OptimizedApp = () => {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard user={user} />;
+      case 'profile':
+        return (
+          <ProfileTab 
+            user={user}
+            currentUser={currentUser}
+            userRole={userRole}
+            friends={friends}
+            onTabChange={handleTabChange}
+            onShowActivateCodeModal={setShowActivateCodeModal}
+            hasPermission={hasPermission}
+            addNotification={addNotification}
+          />
+        );
       case 'my-quests':
         return <QuestsTab userId={user.id} />;
       case 'rewards':
@@ -137,6 +162,8 @@ const OptimizedApp = () => {
 };
 
 export default OptimizedApp;
+
+
 
 
 
