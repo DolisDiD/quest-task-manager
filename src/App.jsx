@@ -1672,17 +1672,15 @@ const QuestTaskManager = () => {
 
   const toggleSubtask = useCallback(async (questId, subtaskId) => {
     try {
-      // Используем функциональное обновление для получения актуального состояния
-      setQuests(currentQuests => {
-        const quest = currentQuests.find(q => q.id === questId);
-        const subtask = quest?.subtasks.find(st => st.id === subtaskId);
-        
-        if (!subtask) {
-          console.error('❌ Subtask not found');
-          return currentQuests;
-        }
+      const quest = quests.find(q => q.id === questId);
+      const subtask = quest?.subtasks.find(st => st.id === subtaskId);
+      
+      if (!subtask) {
+        console.error('❌ Subtask not found');
+        return;
+      }
 
-        const newCompletedStatus = !subtask.completed;
+      const newCompletedStatus = !subtask.completed;
 
       const { error: updateError } = await supabase
         .from('quest_subtasks')
@@ -1811,7 +1809,7 @@ const QuestTaskManager = () => {
       console.error('❌ Error in toggleSubtask:', error);
       alert('Ошибка: ' + error.message);
     }
-  }, [user?.id, addNotification]);
+  }, [quests, user?.id, addNotification]);
 
   const toggleQuest = useCallback(async (questId) => {
     try {
