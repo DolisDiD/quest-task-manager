@@ -38,13 +38,13 @@ BEGIN
       c.title,
       c.rarity,
       CASE 
-        WHEN c.rarity = 'common' THEN 0.038
+        WHEN c.rarity = 'base' THEN 0.038
         WHEN c.rarity = 'rare' THEN 0.01
         ELSE 0
       END as weight
     FROM cards c
     WHERE c.pack_id = p_pack_id 
-      AND c.rarity IN ('common', 'rare')
+      AND c.rarity IN ('base', 'rare')
   ),
   cumulative_weights AS (
     SELECT 
@@ -78,7 +78,7 @@ BEGIN
     IF v_user_card IS NOT NULL THEN
       -- Увеличиваем количество
       CASE v_rarity
-        WHEN 'common' THEN
+        WHEN 'base' THEN
           v_new_qty := v_user_card.qty_base + 1;
           UPDATE user_cards 
           SET qty_base = v_new_qty, updated_at = NOW()
@@ -96,7 +96,7 @@ BEGIN
       VALUES (
         p_user_id, 
         v_card.id,
-        CASE WHEN v_rarity = 'common' THEN 1 ELSE 0 END,
+        CASE WHEN v_rarity = 'base' THEN 1 ELSE 0 END,
         CASE WHEN v_rarity = 'rare' THEN 1 ELSE 0 END,
         0, -- epic и legendary создаются только через слияние
         0,
@@ -121,4 +121,4 @@ $$;
 GRANT EXECUTE ON FUNCTION draw_card(UUID, UUID, TEXT) TO authenticated;
 
 -- Комментарий к функции
-COMMENT ON FUNCTION draw_card(UUID, UUID, TEXT) IS 'Выдает карточку пользователю при выполнении квеста. 100% вероятность выпадения: 25 common карточек по 3.8% каждая (95%), 5 rare карточек по 1% каждая (5%)';
+COMMENT ON FUNCTION draw_card(UUID, UUID, TEXT) IS 'Выдает карточку пользователю при выполнении квеста. 100% вероятность выпадения: 25 base карточек по 3.8% каждая (95%), 5 rare карточек по 1% каждая (5%)';
