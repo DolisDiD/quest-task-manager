@@ -1672,15 +1672,17 @@ const QuestTaskManager = () => {
 
   const toggleSubtask = useCallback(async (questId, subtaskId) => {
     try {
-      const quest = quests.find(q => q.id === questId);
-      const subtask = quest?.subtasks.find(st => st.id === subtaskId);
-      
-      if (!subtask) {
-        console.error('❌ Subtask not found');
-        return;
-      }
+      // Используем функциональное обновление для получения актуального состояния
+      setQuests(currentQuests => {
+        const quest = currentQuests.find(q => q.id === questId);
+        const subtask = quest?.subtasks.find(st => st.id === subtaskId);
+        
+        if (!subtask) {
+          console.error('❌ Subtask not found');
+          return currentQuests;
+        }
 
-      const newCompletedStatus = !subtask.completed;
+        const newCompletedStatus = !subtask.completed;
 
       const { error: updateError } = await supabase
         .from('quest_subtasks')
@@ -1788,118 +1790,94 @@ const QuestTaskManager = () => {
         }
       }
           
-      setQuests(quests.map(q => {
-        if (q.id === questId) {
-          return {
-            ...q,
-            subtasks: updatedSubtasks,
-            progress: completedCount,
-            completed: isQuestComplete
-          };
-        }
-        return q;
-      }));
+      setQuests(currentQuests => 
+        currentQuests.map(q => {
+          if (q.id === questId) {
+            return {
+              ...q,
+              subtasks: updatedSubtasks,
+              progress: completedCount,
+              completed: isQuestComplete
+            };
+          }
+          return q;
+        })
+      );
 
-      setTimeout(async () => {
-        await loadRewards();
-      }, 500);
+      // Обновляем награды без задержки
+      loadRewards();
 
     } catch (error) {
       console.error('❌ Error in toggleSubtask:', error);
       alert('Ошибка: ' + error.message);
     }
-  }, [quests, user?.id, addNotification]);
+  }, [user?.id, addNotification]);
 
   const toggleQuest = useCallback(async (questId) => {
     try {
-      const quest = quests.find(q => q.id === questId);
-      if (!quest || quest.subtasks.length > 0) {
-        console.log('❌ Quest not found or has subtasks');
-        return;
-      }
-
-      const newCompletedStatus = !quest.completed;
-      console.log(`🔄 Toggling quest ${questId} to ${newCompletedStatus}`);
-
-      const { error: questUpdateError } = await supabase
-        .from('quests')
-        .update({ 
-          completed: newCompletedStatus,
-          progress: newCompletedStatus ? 1 : 0
-        })
-        .eq('id', questId);
-
-      if (questUpdateError) {
-        console.error('❌ Error updating quest:', questUpdateError);
-        alert('Ошибка обновления квеста: ' + questUpdateError.message);
-        return;
-      }
-
-      if (newCompletedStatus && !quest.completed) {
-        const rewardData = {
-          user_id: user.id,
-          quest_id: quest.id,
-          quest_title: quest.title,
-          title: quest.reward || 'Quest Completed',
-          bonus: quest.bonus,
-          type: 'main',
-          claimed: false
-        };
-
-        const { error: rewardError } = await supabase
-          .from('rewards')
-          .insert(rewardData);
-
-        if (rewardError) {
-          console.error('❌ Error creating reward:', rewardError);
+      setQuests(currentQuests => {
+        const quest = currentQuests.find(q => q.id === questId);
+        if (!quest || quest.subtasks.length > 0) {
+          console.log('❌ Quest not found or has subtasks');
+          return currentQuests;
         }
 
-        // Grant collection cards from pack for single-step quests (only if assigned by friend)
-        await grantCardsFromPack(quest, quest.difficulty);
-      }
-      else if (!newCompletedStatus && quest.completed) {
-        const { error: deleteRewardError } = await supabase
-          .from('rewards')
-          .delete()
-          .eq('quest_id', questId)
-          .eq('type', 'main')
-          .eq('claimed', false);
+        const newCompletedStatus = !quest.completed;
+        console.log(`🔄 Toggling quest ${questId} to ${newCompletedStatus}`);
 
-        if (deleteRewardError) {
-          console.error('❌ Error deleting reward:', deleteRewardError);
-        }
-      }
-
-      setQuests(quests.map(q => {
-        if (q.id === questId) {
-          if (newCompletedStatus && !q.completed) {
-            setCurrentUser(prev => ({
-              ...prev,
-              completedQuests: prev.completedQuests + 1
-            }));
-          } else if (!newCompletedStatus && q.completed) {
-            setCurrentUser(prev => ({
-              ...prev,
-              completedQuests: Math.max(0, prev.completedQuests - 1)
-            }));
-          }
-          
-          return { 
-            ...q, 
-            completed: newCompletedStatus, 
+        // Обновляем квест в базе данных
+        supabase
+          .from('quests')
+          .update({ 
+            completed: newCompletedStatus,
             progress: newCompletedStatus ? 1 : 0
-          };
-        }
-        return q;
-      }));
+          })
+          .eq('id', questId)
+          .then(({ error: questUpdateError }) => {
+            if (questUpdateError) {
+              console.error('❌ Error updating quest:', questUpdateError);
+              alert('Ошибка обновления квеста: ' + questUpdateError.message);
+              return;
+            }
 
-      await loadRewards();
+            // Обновляем состояние локально
+            setQuests(currentQuests => 
+              currentQuests.map(q => {
+                if (q.id === questId) {
+                  if (newCompletedStatus && !q.completed) {
+                    setCurrentUser(prev => ({
+                      ...prev,
+                      completedQuests: prev.completedQuests + 1
+                    }));
+                  } else if (!newCompletedStatus && q.completed) {
+                    setCurrentUser(prev => ({
+                      ...prev,
+                      completedQuests: Math.max(0, prev.completedQuests - 1)
+                    }));
+                  }
+                  
+                  return { 
+                    ...q, 
+                    completed: newCompletedStatus, 
+                    progress: newCompletedStatus ? 1 : 0
+                  };
+                }
+                return q;
+              })
+            );
+
+            // Обновляем награды
+            loadRewards();
+          });
+
+        return currentQuests;
+      });
 
     } catch (error) {
       console.error('❌ Error in toggleQuest:', error);
       alert('Ошибка: ' + error.message);
     }
-  }, [quests, user?.id, addNotification]);
+  }, [user?.id, addNotification]);
 
   const expandQuest = useCallback((questId) => {
     setExpandedQuests(prev => {
