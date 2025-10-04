@@ -107,6 +107,7 @@ const QuestTaskManager = () => {
   
   // Состояние для системы ролей
   const [showActivateCodeModal, setShowActivateCodeModal] = useState(false);
+  const [expandedQuests, setExpandedQuests] = useState(new Set());
   
   // Хуки для системы ролей
   const { userRole, roleLimits, hasPermission, loading: roleLoading, updateRole } = useRoles(user?.id);
@@ -1793,8 +1794,7 @@ const QuestTaskManager = () => {
             ...q,
             subtasks: updatedSubtasks,
             progress: completedCount,
-            completed: isQuestComplete,
-            expanded: q.expanded // Сохраняем состояние развернутости
+            completed: isQuestComplete
           };
         }
         return q;
@@ -1887,8 +1887,7 @@ const QuestTaskManager = () => {
           return { 
             ...q, 
             completed: newCompletedStatus, 
-            progress: newCompletedStatus ? 1 : 0,
-            expanded: q.expanded // Сохраняем состояние развернутости
+            progress: newCompletedStatus ? 1 : 0
           };
         }
         return q;
@@ -1903,13 +1902,16 @@ const QuestTaskManager = () => {
   }, [quests, user?.id, addNotification]);
 
   const expandQuest = useCallback((questId) => {
-    setQuests(quests.map(quest => {
-      if (quest.id === questId) {
-        return { ...quest, expanded: !quest.expanded };
+    setExpandedQuests(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(questId)) {
+        newSet.delete(questId);
+      } else {
+        newSet.add(questId);
       }
-      return quest;
-    }));
-  }, [quests]);
+      return newSet;
+    });
+  }, []);
 
   const getProgressPercentage = (quest) => {
     if (quest.totalSteps === 0) return quest.completed ? 100 : 0;
@@ -1954,7 +1956,10 @@ const QuestTaskManager = () => {
     return 'text-gray-400';
   };
 
-  const QuestCard = ({ quest }) => (
+  const QuestCard = ({ quest }) => {
+    const isExpanded = expandedQuests.has(quest.id);
+    
+    return (
     <div
       className={`bg-gradient-to-r from-gray-800/60 to-gray-900/60 backdrop-blur-sm border rounded-xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-yellow-400/10 ${
         quest.completed ? 'border-green-500/50' : difficultyColors[quest.difficulty]
@@ -1998,7 +2003,7 @@ const QuestTaskManager = () => {
                 className="flex items-center space-x-2 hover:text-yellow-400 transition-colors"
               >
                 {quest.subtasks?.length > 0 ? (
-                  quest.expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />
+                  isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />
                 ) : (
                   quest.completed ? <CheckCircle className="w-5 h-5 text-green-400" /> : <Circle className="w-5 h-5" />
                 )}
@@ -2047,7 +2052,7 @@ const QuestTaskManager = () => {
         </div>
       </div>
       
-      {quest.expanded && quest.subtasks?.length > 0 && (
+      {isExpanded && quest.subtasks?.length > 0 && (
         <div className="border-t border-gray-700 bg-black/20">
           <div className="p-4">
             <h4 className="text-sm font-semibold text-gray-300 mb-3">Подзадачи:</h4>
@@ -2079,7 +2084,8 @@ const QuestTaskManager = () => {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   const RewardsTab = () => {
     const [localRewardSearch, setLocalRewardSearch] = useState('');
