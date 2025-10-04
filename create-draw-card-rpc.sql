@@ -31,49 +31,27 @@ BEGIN
   -- Генерируем случайное число от 0 до 1
   v_random := random();
   
-  -- Выбираем карточку на основе кумулятивных весов
-  WITH weighted_cards AS (
-    SELECT 
-      c.id as card_id,
-      c.title as card_title,
-      c.rarity as card_rarity,
-      CASE 
-        WHEN c.rarity = 'base' THEN 0.038
-        WHEN c.rarity = 'rare' THEN 0.01
-        ELSE 0
-      END as card_weight
-    FROM cards c
-    WHERE c.pack_id = p_pack_id 
-      AND c.rarity IN ('base', 'rare')
-  ),
-  cumulative_weights AS (
-    SELECT 
-      wc.card_id,
-      wc.card_title,
-      wc.card_rarity,
-      wc.card_weight,
-      SUM(wc.card_weight) OVER (ORDER BY wc.card_id) as cumulative_weight
-    FROM weighted_cards wc
-  )
+  -- Выбираем карточку напрямую без CTE
   SELECT 
-    cw.card_id,
-    cw.card_title,
-    cw.card_rarity
+    c.id,
+    c.title,
+    c.rarity
   INTO v_card
-  FROM cumulative_weights cw
-  WHERE cw.cumulative_weight >= v_random
-  ORDER BY cw.cumulative_weight ASC
+  FROM cards c
+  WHERE c.pack_id = p_pack_id 
+    AND c.rarity IN ('base', 'rare')
+  ORDER BY random()
   LIMIT 1;
 
   -- Если карточка найдена, добавляем её в коллекцию пользователя
-  IF v_card.card_id IS NOT NULL THEN
+  IF v_card.id IS NOT NULL THEN
     -- Получаем редкость карточки
-    v_rarity := v_card.card_rarity;
+    v_rarity := v_card.rarity;
     
     -- Проверяем, есть ли уже эта карточка у пользователя
     SELECT * INTO v_user_card
     FROM user_cards
-    WHERE user_id = p_user_id AND card_id = v_card.card_id;
+    WHERE user_id = p_user_id AND card_id = v_card.id;
 
     IF v_user_card IS NOT NULL THEN
       -- Увеличиваем количество
@@ -82,12 +60,12 @@ BEGIN
           v_new_qty := v_user_card.qty_base + 1;
           UPDATE user_cards 
           SET qty_base = v_new_qty, updated_at = NOW()
-          WHERE user_id = p_user_id AND card_id = v_card.card_id;
+          WHERE user_id = p_user_id AND card_id = v_card.id;
         WHEN 'rare' THEN
           v_new_qty := v_user_card.qty_rare + 1;
           UPDATE user_cards 
           SET qty_rare = v_new_qty, updated_at = NOW()
-          WHERE user_id = p_user_id AND card_id = v_card.card_id;
+          WHERE user_id = p_user_id AND card_id = v_card.id;
       END CASE;
     ELSE
       -- Создаем новую запись
@@ -95,7 +73,7 @@ BEGIN
       INSERT INTO user_cards (user_id, card_id, qty_base, qty_rare, qty_epic, qty_legendary, created_at, updated_at)
       VALUES (
         p_user_id, 
-        v_card.card_id,
+        v_card.id,
         CASE WHEN v_rarity = 'base' THEN 1 ELSE 0 END,
         CASE WHEN v_rarity = 'rare' THEN 1 ELSE 0 END,
         0, -- epic и legendary создаются только через слияние
@@ -109,7 +87,7 @@ BEGIN
     v_upgraded := NULL;
 
     -- Возвращаем результат
-    RETURN QUERY SELECT v_card.card_id, v_rarity::TEXT, v_upgraded;
+    RETURN QUERY SELECT v_card.id, v_rarity::TEXT, v_upgraded;
   ELSE
     -- Если карточка не найдена, возвращаем пустой результат
     RETURN;
