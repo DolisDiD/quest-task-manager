@@ -67,6 +67,9 @@ BEGIN
 
   -- Если карточка найдена, добавляем её в коллекцию пользователя
   IF v_card.id IS NOT NULL THEN
+    -- Получаем редкость карточки
+    v_rarity := v_card.rarity;
+    
     -- Проверяем, есть ли уже эта карточка у пользователя
     SELECT * INTO v_user_card
     FROM user_cards
