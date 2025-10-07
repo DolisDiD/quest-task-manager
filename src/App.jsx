@@ -2711,13 +2711,27 @@ const MyQuestsTab = () => {
             
             <div>
               <label className="block text-sm font-medium mb-2">Описание задачи</label>
-              <textarea
-                placeholder="Описание задачи"
-                value={localNewQuest.description}
-                onChange={(e) => setLocalNewQuest({ ...localNewQuest, description: e.target.value })}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                rows="3"
-              />
+              <div className="relative">
+                <textarea
+                  placeholder="Описание задачи"
+                  value={localNewQuest.description}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= 500) {
+                      setLocalNewQuest({ ...localNewQuest, description: value });
+                    }
+                  }}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 pr-20"
+                  rows="3"
+                  maxLength={500}
+                />
+                <div className="absolute bottom-2 left-2 text-xs text-gray-400">
+                  Не больше 500 символов
+                </div>
+                <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+                  {localNewQuest.description.length}/500
+                </div>
+              </div>
             </div>
             
             <div>
@@ -3328,13 +3342,27 @@ const MyQuestsTab = () => {
             
             <div>
               <label className="block text-sm font-medium mb-2">Описание задачи</label>
-              <textarea
-                placeholder="Описание задачи"
-                value={newAssignedQuest.description}
-                onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, description: e.target.value })}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
-                rows="3"
-              />
+              <div className="relative">
+                <textarea
+                  placeholder="Описание задачи"
+                  value={newAssignedQuest.description}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= 500) {
+                      setNewAssignedQuest({ ...newAssignedQuest, description: value });
+                    }
+                  }}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 pr-20"
+                  rows="3"
+                  maxLength={500}
+                />
+                <div className="absolute bottom-2 left-2 text-xs text-gray-400">
+                  Не больше 500 символов
+                </div>
+                <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+                  {newAssignedQuest.description.length}/500
+                </div>
+              </div>
             </div>
             
             <div>
