@@ -1155,7 +1155,7 @@ const QuestTaskManager = () => {
       // Проверяем, что квест был поставлен другом (не самим пользователем)
       if (!quest.assignedBy || quest.assignedBy === user.id) {
         console.log('ℹ️ Quest was self-assigned, skipping card rewards');
-        addNotification(`Квест выполнен!`, 'success');
+        addNotification(`Задача выполнена!`, 'success');
         return;
       }
       
@@ -1181,7 +1181,7 @@ const QuestTaskManager = () => {
         // Если RPC функция не существует, создаем простую награду
         if (error.code === '42883' || error.message.includes('function') || error.message.includes('does not exist')) {
           console.log('⚠️ RPC function draw_card not found, creating simple reward');
-          addNotification(`Квест выполнен!`, 'success');
+          addNotification(`Задача выполнена!`, 'success');
           return;
         }
         
@@ -1197,7 +1197,7 @@ const QuestTaskManager = () => {
       console.log('🎯 CardsById keys:', Object.keys(cardsById));
       
       if (drops.length === 0) {
-        addNotification(`Квест выполнен!`, 'success');
+        addNotification(`Задача выполнена!`, 'success');
         return;
       }
       
@@ -1227,7 +1227,7 @@ const QuestTaskManager = () => {
       
     } catch (e) {
       console.error('❌ Error in grantCardsFromPack:', e);
-      addNotification('Квест выполнен!', 'success');
+      addNotification('Задача выполнена!', 'success');
     }
   };
 
@@ -1832,7 +1832,7 @@ const QuestTaskManager = () => {
             user_id: user.id,
             quest_id: quest.id,
             quest_title: quest.title,
-            title: quest.reward || 'Квест выполнен!',
+            title: quest.reward || 'Задача выполнена!',
             bonus: quest.bonus,
             type: 'main',
             claimed: false,
@@ -1938,7 +1938,7 @@ const QuestTaskManager = () => {
               })
             );
 
-            // Создаем награду за выполнение квеста
+            // Создаем награду за выполнение задачи
             if (newCompletedStatus && !quest.completed) {
               console.log('🎁 Creating main quest reward for:', quest.title);
               supabase
@@ -1947,7 +1947,7 @@ const QuestTaskManager = () => {
                   user_id: user.id,
                   quest_id: quest.id,
                   quest_title: quest.title,
-                  title: quest.reward || 'Квест выполнен!',
+                  title: quest.reward || 'Задача выполнена!',
                   bonus: quest.bonus,
                   type: 'main',
                   claimed: false,
@@ -3937,7 +3937,7 @@ return (
                   </div>
                   <div className="flex items-center space-x-3">
                     <Trophy className="w-5 h-5 text-gray-400" />
-                    <span>{currentUser.completedQuests} квестов выполнено</span>
+                    <span>{currentUser.completedQuests} задач выполнено</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Users className="w-5 h-5 text-gray-400" />
