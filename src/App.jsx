@@ -3686,9 +3686,19 @@ if (!user) {
   );
 }
 
-const tabs = [
+// Вкладки для мобильной навигации (включая профиль)
+const mobileTabs = [
   { id: 'dashboard', label: 'Главная', icon: Home },
   { id: 'profile', label: 'Профиль', icon: User },
+  { id: 'my-quests', label: 'Мои задачи', icon: ListChecks },
+  { id: 'rewards', label: 'Награды', icon: Trophy },
+  { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
+  { id: 'friends', label: 'Друзья', icon: Users }
+];
+
+// Вкладки для десктопной навигации (без профиля)
+const desktopTabs = [
+  { id: 'dashboard', label: 'Главная', icon: Home },
   { id: 'my-quests', label: 'Мои задачи', icon: ListChecks },
   { id: 'rewards', label: 'Награды', icon: Trophy },
   { id: 'assigned-quests', label: 'Поставленные задачи', icon: Send },
@@ -3754,7 +3764,7 @@ return (
       title="Навигация"
     >
       <div className="p-4 space-y-2">
-        {tabs.map((tab, index) => {
+        {mobileTabs.map((tab, index) => {
           const Icon = tab.icon;
           return (
             <motion.button
@@ -3799,7 +3809,7 @@ return (
     <div className="hidden sm:block bg-gray-800/30 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex space-x-1 overflow-x-auto">
-          {tabs.map(tab => {
+          {desktopTabs.map(tab => {
             const Icon = tab.icon;
             return (
               <button
