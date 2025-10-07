@@ -1150,11 +1150,11 @@ const QuestTaskManager = () => {
   // Grant cards from pack upon quest completion
   const grantCardsFromPack = async (quest, difficulty) => {
     try {
-      console.log('🎁 Granting cards for quest:', quest.title, 'difficulty:', difficulty);
+      console.log('🎁 Granting cards for task:', quest.title, 'difficulty:', difficulty);
       
-      // Проверяем, что квест был поставлен другом (не самим пользователем)
+      // Проверяем, что задача была поставлена другом (не самим пользователем)
       if (!quest.assignedBy || quest.assignedBy === user.id) {
-        console.log('ℹ️ Quest was self-assigned, skipping card rewards');
+        console.log('ℹ️ Task was self-assigned, skipping card rewards');
         addNotification(`Задача выполнена!`, 'success');
         return;
       }
@@ -1895,9 +1895,9 @@ const QuestTaskManager = () => {
         }
 
         const newCompletedStatus = !quest.completed;
-        console.log(`🔄 Toggling quest ${questId} to ${newCompletedStatus}`);
+        console.log(`🔄 Toggling task ${questId} to ${newCompletedStatus}`);
 
-        // Обновляем квест в базе данных
+        // Обновляем задачу в базе данных
         supabase
           .from('quests')
           .update({ 
@@ -1907,8 +1907,8 @@ const QuestTaskManager = () => {
           .eq('id', questId)
           .then(({ error: questUpdateError }) => {
             if (questUpdateError) {
-              console.error('❌ Error updating quest:', questUpdateError);
-              alert('Ошибка обновления квеста: ' + questUpdateError.message);
+              console.error('❌ Error updating task:', questUpdateError);
+              alert('Ошибка обновления задачи: ' + questUpdateError.message);
               return;
             }
 
@@ -2365,11 +2365,11 @@ const MyQuestsTab = () => {
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   
-  // Мемоизированные квесты для предотвращения лишних перерендеров
+  // Мемоизированные задачи для предотвращения лишних перерендеров
   const myQuests = useMemo(() => getMyQuests(), [quests, user?.id]);
   const allMyQuests = myQuests;
   
-  // Мемоизированная фильтрация квестов
+  // Мемоизированная фильтрация задач
   const filterQuests = useCallback((quests) => {
     let filtered = quests;
     
@@ -2420,7 +2420,7 @@ const MyQuestsTab = () => {
     return sorted;
   }, [localSortBy, localSortOrder]);
   
-  // Мемоизированная фильтрация и сортировка квестов
+  // Мемоизированная фильтрация и сортировка задач
   const filteredAndSortedQuests = useMemo(() => {
     const subtabFiltered = (activeMyQuestsSubtab === 'active' || hideCompletedMyQuests)
       ? allMyQuests.filter(q => !q.completed)
@@ -2500,8 +2500,8 @@ const MyQuestsTab = () => {
         .single();
 
       if (questError) {
-        console.error('⚠ Error creating quest:', questError);
-        addNotification('Ошибка создания квеста: ' + questError.message, 'error');
+        console.error('⚠ Error creating task:', questError);
+        addNotification('Ошибка создания задачи: ' + questError.message, 'error');
         return;
       }
 
@@ -2545,10 +2545,10 @@ const MyQuestsTab = () => {
       setQuestType('rare');
       setShowSubtaskForm(false);
 
-      // Обновляем список квестов
+      // Обновляем список задач
       await loadQuests();
       
-      addNotification('Квест создан!', 'success');
+        addNotification('Задача создана!', 'success');
 
       } catch (error) {
         console.error('⚠ Error creating personal quest:', error);
@@ -2593,7 +2593,7 @@ const MyQuestsTab = () => {
           className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105"
         >
           <Plus className="w-4 h-4" />
-          <span>Новый квест</span>
+          <span>Новая задача</span>
         </button>
       </div>
 
@@ -2603,7 +2603,7 @@ const MyQuestsTab = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Поиск квестов..."
+              placeholder="Поиск задач..."
               value={localQuestSearch}
               onChange={(e) => setLocalQuestSearch(e.target.value)}
               className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
@@ -2617,7 +2617,7 @@ const MyQuestsTab = () => {
               onChange={(e) => setLocalStatusFilter(e.target.value)}
               className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-yellow-400 appearance-none text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="all" className="bg-gray-700 text-white">Все квесты</option>
+              <option value="all" className="bg-gray-700 text-white">Все задачи</option>
               <option value="pending" className="bg-gray-700 text-white">В ожидании</option>
               <option value="in-progress" className="bg-gray-700 text-white">В процессе</option>
               <option value="completed" className="bg-gray-700 text-white">Выполнено</option>
@@ -2646,17 +2646,17 @@ const MyQuestsTab = () => {
           </button>
           
           <div className="text-sm text-gray-400">
-            Показано {filteredAndSortedQuests.length} из {allMyQuests.length} квестов
+            Показано {filteredAndSortedQuests.length} из {allMyQuests.length} задач
           </div>
         </div>
       </div>
 
       {localShowNewQuest && (
         <div className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 sm:p-6">
-          <h3 className="text-xl font-bold mb-4 text-yellow-400">Создать новый квест</h3>
+          <h3 className="text-xl font-bold mb-4 text-yellow-400">Создать новую задачу</h3>
           
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-3">Тип квеста</label>
+            <label className="block text-sm font-medium mb-3">Тип задачи</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 onClick={() => {
@@ -2699,10 +2699,10 @@ const MyQuestsTab = () => {
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Название {questType === 'legendary' ? 'главного ' : ''}квеста</label>
+              <label className="block text-sm font-medium mb-2">Название {questType === 'legendary' ? 'главной ' : ''}задачи</label>
               <input
                 type="text"
-                placeholder={`Название ${questType === 'legendary' ? 'главного ' : ''}квеста`}
+                placeholder={`Название ${questType === 'legendary' ? 'главной ' : ''}задачи`}
                 value={localNewQuest.title}
                 onChange={(e) => setLocalNewQuest({ ...localNewQuest, title: e.target.value })}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
@@ -2710,9 +2710,9 @@ const MyQuestsTab = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Описание квеста</label>
+              <label className="block text-sm font-medium mb-2">Описание задачи</label>
               <textarea
-                placeholder="Описание квеста"
+                placeholder="Описание задачи"
                 value={localNewQuest.description}
                 onChange={(e) => setLocalNewQuest({ ...localNewQuest, description: e.target.value })}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
@@ -2721,7 +2721,7 @@ const MyQuestsTab = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Награда за квест</label>
+              <label className="block text-sm font-medium mb-2">Награда за задачу</label>
               <input
                 type="text"
                 placeholder="Награда за выполнение"
@@ -2813,7 +2813,7 @@ const MyQuestsTab = () => {
               onClick={addLocalNewQuest}
               className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 px-6 py-2 rounded-lg transition-all duration-200"
             >
-              Создать квест
+              Создать задачу
             </button>
             <button
               onClick={() => {
@@ -2844,7 +2844,7 @@ const MyQuestsTab = () => {
       <div className="space-y-6">
         {filteredAndSortedQuests.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-lg mb-2">Квесты не найдены</div>
+            <div className="text-gray-400 text-lg mb-2">Задачи не найдены</div>
             <div className="text-gray-500">Попробуйте изменить параметры поиска или фильтры</div>
           </div>
         ) : (
@@ -3042,7 +3042,7 @@ const MyQuestsTab = () => {
           <div className="text-center py-12">
             <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <div className="text-gray-400 text-lg mb-2">У вас пока нет друзей</div>
-            <div className="text-gray-500">Добавьте друзей, чтобы делиться квестами!</div>
+            <div className="text-gray-500">Добавьте друзей, чтобы делиться задачами!</div>
           </div>
         )}
       </div>
@@ -3142,8 +3142,8 @@ const MyQuestsTab = () => {
         .single();
 
       if (questError) {
-        console.error('⚠ Error creating quest:', questError);
-        addNotification('Ошибка создания квеста: ' + questError.message, 'error');
+        console.error('⚠ Error creating task:', questError);
+        addNotification('Ошибка создания задачи: ' + questError.message, 'error');
         return;
       }
 
@@ -3192,7 +3192,7 @@ const MyQuestsTab = () => {
 
       await loadQuests();
       
-      addNotification(`Квест успешно назначен для ${friendName}!`, 'success');
+      addNotification(`Задача успешно назначена для ${friendName}!`, 'success');
 
       } catch (error) {
         console.error('⚠ Error in createAssignedQuest:', error);
@@ -3273,7 +3273,7 @@ const MyQuestsTab = () => {
           </div>
           
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-3">Тип квеста</label>
+            <label className="block text-sm font-medium mb-3">Тип задачи</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 onClick={() => {
@@ -3327,9 +3327,9 @@ const MyQuestsTab = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Описание квеста</label>
+              <label className="block text-sm font-medium mb-2">Описание задачи</label>
               <textarea
-                placeholder="Описание квеста"
+                placeholder="Описание задачи"
                 value={newAssignedQuest.description}
                 onChange={(e) => setNewAssignedQuest({ ...newAssignedQuest, description: e.target.value })}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400"
@@ -3338,7 +3338,7 @@ const MyQuestsTab = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Награда за квест</label>
+              <label className="block text-sm font-medium mb-2">Награда за задачу</label>
               <input
                 type="text"
                 placeholder="Награда за выполнение"
@@ -3430,7 +3430,7 @@ const MyQuestsTab = () => {
               onClick={createAssignedQuest}
               className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 px-6 py-2 rounded-lg transition-all duration-200"
             >
-              Создать квест
+              Создать задачу
             </button>
             <button
               onClick={() => {
@@ -3484,7 +3484,7 @@ const MyQuestsTab = () => {
         <div className="text-center py-12">
           <Send className="w-16 h-16 text-gray-600 mx-auto mb-4" />
           <div className="text-gray-400 text-lg mb-2">Нет поставленных заданий</div>
-          <div className="text-gray-500">Создайте квест и назначьте его другу!</div>
+          <div className="text-gray-500">Создайте задачу и назначьте её другу!</div>
         </div>
       )}
     </div>
@@ -4077,7 +4077,7 @@ return (
         tabLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-            <span className="ml-3 text-gray-300">Загрузка квестов...</span>
+            <span className="ml-3 text-gray-300">Загрузка задач...</span>
           </div>
         ) : (
           <MyQuestsTab />
