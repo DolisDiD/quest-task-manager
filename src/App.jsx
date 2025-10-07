@@ -579,10 +579,12 @@ const QuestTaskManager = () => {
     try {
       if (!user || !packId) return;
       
-      // Используем исправленный запрос с явным указанием таблицы для card_id
+      console.log('🔄 Loading collection for pack:', packId, 'user:', user.id);
+      
+      // Загружаем коллекцию пользователя
       const { data, error } = await supabase
         .from('user_cards')
-        .select('user_cards.card_id, qty_base, qty_rare, qty_epic, qty_legendary, cards!inner(id, pack_id, title, rarity, image_url)')
+        .select('card_id, qty_base, qty_rare, qty_epic, qty_legendary, cards!inner(id, pack_id, title, rarity, image_url)')
         .eq('user_id', user.id)
         .eq('cards.pack_id', packId);
         
@@ -590,6 +592,8 @@ const QuestTaskManager = () => {
         console.error('❌ Error loading collection:', error);
         return;
       }
+      
+      console.log('📦 Collection data received:', data);
       
       const items = (data || []).map(row => ({
         cardId: row.card_id,
@@ -604,6 +608,8 @@ const QuestTaskManager = () => {
           legendary: row.qty_legendary
         }
       }));
+      
+      console.log('🎯 Processed collection items:', items);
       setUserCards(items);
     } catch (e) {
       console.error('❌ Error in loadCollection:', e);
@@ -1171,6 +1177,11 @@ const QuestTaskManager = () => {
           addNotification(`Слияние: 3× ${upTitle} → ${d.upgraded.to}`, 'info');
         }
       });
+      
+      // Перезагружаем коллекцию после выдачи карточки
+      if (selectedPackId) {
+        await loadCollection(selectedPackId);
+      }
       
     } catch (e) {
       console.error('❌ Error in grantCardsFromPack:', e);
