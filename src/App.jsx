@@ -578,15 +578,19 @@ const QuestTaskManager = () => {
   const loadCollection = async (packId) => {
     try {
       if (!user || !packId) return;
+      
+      // Используем исправленный запрос с явным указанием таблицы для card_id
       const { data, error } = await supabase
         .from('user_cards')
-        .select('card_id, qty_base, qty_rare, qty_epic, qty_legendary, cards!inner(id, pack_id, title, rarity, image_url)')
+        .select('user_cards.card_id, qty_base, qty_rare, qty_epic, qty_legendary, cards!inner(id, pack_id, title, rarity, image_url)')
         .eq('user_id', user.id)
         .eq('cards.pack_id', packId);
+        
       if (error) {
         console.error('❌ Error loading collection:', error);
         return;
       }
+      
       const items = (data || []).map(row => ({
         cardId: row.card_id,
         packId: row.cards.pack_id,
