@@ -164,6 +164,8 @@ const QuestTaskManager = () => {
   // Collection
   const [selectedPackId, setSelectedPackId] = useOptimizedState(null);
   const [userCards, setUserCards] = useOptimizedState([]);
+  const [collectionCache, setCollectionCache] = useOptimizedState({});
+  const [isLoadingCollection, setIsLoadingCollection] = useState(false);
   
   // Pack Management
   const [editingPackId, setEditingPackId] = useState(null);
@@ -579,12 +581,37 @@ const QuestTaskManager = () => {
     try {
       if (!user || !packId) return;
       
+      // Проверяем кэш
+      const cacheKey = `${user.id}-${packId}`;
+      if (collectionCache[cacheKey]) {
+        console.log('📦 Using cached collection for pack:', packId);
+        setUserCards(collectionCache[cacheKey]);
+        return;
+      }
+      
       console.log('🔄 Loading collection for pack:', packId, 'user:', user.id);
       
-      // Загружаем коллекцию пользователя
+      // Показываем загрузку
+      setIsLoadingCollection(true);
+      setUserCards([]);
+      
+      // Загружаем коллекцию пользователя с оптимизированным запросом
       const { data, error } = await supabase
         .from('user_cards')
-        .select('card_id, qty_base, qty_rare, qty_epic, qty_legendary, cards!inner(id, pack_id, title, rarity, image_url)')
+        .select(`
+          card_id, 
+          qty_base, 
+          qty_rare, 
+          qty_epic, 
+          qty_legendary,
+          cards!inner(
+            id, 
+            pack_id, 
+            title, 
+            rarity, 
+            image_url
+          )
+        `)
         .eq('user_id', user.id)
         .eq('cards.pack_id', packId);
         
@@ -610,9 +637,18 @@ const QuestTaskManager = () => {
       }));
       
       console.log('🎯 Processed collection items:', items);
+      
+      // Сохраняем в кэш
+      setCollectionCache(prev => ({
+        ...prev,
+        [cacheKey]: items
+      }));
+      
       setUserCards(items);
     } catch (e) {
       console.error('❌ Error in loadCollection:', e);
+    } finally {
+      setIsLoadingCollection(false);
     }
   };
 
@@ -1178,8 +1214,14 @@ const QuestTaskManager = () => {
         }
       });
       
-      // Перезагружаем коллекцию после выдачи карточки
+      // Очищаем кэш и перезагружаем коллекцию после выдачи карточки
       if (selectedPackId) {
+        const cacheKey = `${user.id}-${selectedPackId}`;
+        setCollectionCache(prev => {
+          const newCache = { ...prev };
+          delete newCache[cacheKey];
+          return newCache;
+        });
         await loadCollection(selectedPackId);
       }
       
@@ -1206,6 +1248,7 @@ const QuestTaskManager = () => {
             value={curPackId || ''}
             onChange={(e) => setSelectedPackId(e.target.value)}
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isLoadingCollection}
           >
             {packs.map(p => (
               <option key={p.id} value={p.id} className="bg-gray-700 text-white">
@@ -1215,7 +1258,14 @@ const QuestTaskManager = () => {
           </select>
         </div>
 
-        {['legendary','epic','rare','base'].map(r => (
+        {isLoadingCollection && (
+          <div className="flex items-center justify-center py-8">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="ml-3 text-gray-300">Загрузка коллекции...</span>
+          </div>
+        )}
+
+        {!isLoadingCollection && ['legendary','epic','rare','base'].map(r => (
           <div key={r} className="mb-6">
             <h3 className="text-lg font-bold mb-3 capitalize">{r === 'base' ? 'Базовые' : r === 'rare' ? 'Редкие' : r === 'epic' ? 'Эпические' : 'Легендарные'}</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
