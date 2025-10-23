@@ -2090,7 +2090,21 @@ const QuestTaskManager = () => {
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => quest.subtasks?.length === 0 ? toggleQuest(quest.id) : expandQuest(quest.id)}
-                className="flex items-center space-x-2 hover:text-yellow-400 transition-colors"
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (quest.subtasks?.length === 0) {
+                    toggleQuest(quest.id);
+                  } else {
+                    expandQuest(quest.id);
+                  }
+                }}
+                className="flex items-center space-x-2 hover:text-yellow-400 active:text-yellow-300 transition-colors touch-manipulation select-none"
+                style={{ 
+                  minHeight: '44px', // Минимальная высота для touch
+                  minWidth: '44px',  // Минимальная ширина для touch
+                  WebkitTapHighlightColor: 'transparent'
+                }}
               >
                 {quest.subtasks?.length > 0 ? (
                   isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />
@@ -2150,8 +2164,17 @@ const QuestTaskManager = () => {
               {quest.subtasks.map((subtask) => (
                 <div
                   key={subtask.id}
-                  className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors cursor-pointer"
+                  className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 active:bg-gray-700/70 transition-colors cursor-pointer touch-manipulation select-none"
                   onClick={() => toggleSubtask(quest.id, subtask.id)}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSubtask(quest.id, subtask.id);
+                  }}
+                  style={{ 
+                    minHeight: '44px', // Минимальная высота для touch
+                    WebkitTapHighlightColor: 'transparent'
+                  }}
                 >
                   <div className="flex items-center space-x-3">
                     {subtask.completed ? (

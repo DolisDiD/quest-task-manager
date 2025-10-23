@@ -127,7 +127,21 @@ const QuestCard = memo(({
             <div className="flex items-center space-x-3">
               <button
                 onClick={quest.subtasks?.length === 0 ? handleToggle : handleExpand}
-                className="flex items-center space-x-2 hover:text-yellow-400 transition-colors"
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (quest.subtasks?.length === 0) {
+                    handleToggle();
+                  } else {
+                    handleExpand();
+                  }
+                }}
+                className="flex items-center space-x-2 hover:text-yellow-400 active:text-yellow-300 transition-colors touch-manipulation select-none"
+                style={{ 
+                  minHeight: '44px', // Минимальная высота для touch
+                  minWidth: '44px',  // Минимальная ширина для touch
+                  WebkitTapHighlightColor: 'transparent'
+                }}
               >
                 {quest.subtasks?.length > 0 ? (
                   isExpanded ? (
@@ -212,8 +226,17 @@ const QuestCard = memo(({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors cursor-pointer"
+                  className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 active:bg-gray-700/70 transition-colors cursor-pointer touch-manipulation select-none"
                   onClick={() => handleSubtaskToggle(subtask.id)}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSubtaskToggle(subtask.id);
+                  }}
+                  style={{ 
+                    minHeight: '44px', // Минимальная высота для touch
+                    WebkitTapHighlightColor: 'transparent'
+                  }}
                 >
                   <div className="flex items-center space-x-3">
                     {subtask.completed ? (
